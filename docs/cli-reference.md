@@ -6,18 +6,37 @@ description: Every aria CLI command, every flag, every exit code.
 
 # CLI Reference
 
-The `aria` command provides a complete toolchain for working with `.aria` specifications.
+The `aria` command provides a complete toolchain for working with `.aria` specifications. Install via `npm install -g aria-lang` or use `npx aria-lang ...` for one-off invocations.
 
 ```bash
 aria <command> [options]
+# or
+npx aria-lang <command> [options]
 ```
 
 Global version:
 
 ```bash
 aria --version
-# → 0.1.0
+# → 0.1.4
 ```
+
+## Commands at a glance
+
+| Command | Purpose | Phase |
+|---|---|---|
+| [`check`](#aria-check) | Validate spec files (parse + semantic check) | core |
+| [`gen`](#aria-gen) | Generate code from a spec (TS/Rust/Python/JSON Schema) | core |
+| [`diagram`](#aria-diagram) | Generate Mermaid state diagrams from behaviors | core |
+| [`test`](#aria-test) | Generate test files from `examples` blocks | core |
+| [`implement`](#aria-implement) | Have an AI fill in contract stubs | core |
+| [`init`](#aria-init) | Scaffold a new `.aria` file from a template | core |
+| [`watch`](#aria-watch) | Re-run check (and optionally gen) on file changes | core |
+| [`fmt`](#aria-fmt) | Format `.aria` files | core |
+| [`setup`](#aria-setup) | Inject ARIA section into project's CLAUDE.md | onboarding |
+| [`import`](#aria-import) | Reverse-engineer existing TypeScript into `.aria` skeletons | reverse engineering |
+| [`drift`](#aria-drift) | Detect divergence between spec and implementation | reverse engineering |
+| [`aria-mcp`](#aria-mcp-mcp-server) | Start the MCP server (5 tools for any MCP client) | integration |
 
 ---
 
@@ -252,6 +271,104 @@ aria fmt <file|dir> [--check]
 
 **Options:**
 - `--check` — Only verify formatting; do not write. Exits non-zero if any file would change.
+
+---
+
+## `aria import`
+
+Reverse-engineer existing TypeScript code into `.aria` spec skeletons. Phase 10.1.
+
+```bash
+aria import <path> [options]
+```
+
+**Arguments:**
+- `<path>` — A `.ts` file or a directory to scan recursively.
+
+**Options:**
+- `-o, --output <dir>` — Output directory for generated `.aria` files (default: `./specs`).
+- `--recursive` — Scan directory recursively (default: enabled).
+- `--no-recursive` — Do not scan recursively.
+- `-t, --target <lang>` — Target language for the emitted `.aria` (default: `typescript`).
+- `--no-jsdoc` — Strip JSDoc comments from the output.
+
+**What it extracts:**
+- `interface` and `type X = { ... }` → `type X is Record`
+- `enum` and `type Color = "red" | "green"` → `type X is Enum`
+- Exported `function` declarations → `contract X` with inferred `inputs`, `requires`, `ensures`, and `on_failure` (from detected throws)
+- `*State` / `*Status` / `*Phase` enums (3+ variants) → `behavior X` skeleton
+
+**What it skips:**
+- `node_modules/`, hidden directories
+- `.test.ts`, `.spec.ts`, `.d.ts` files
+- Symbolic links (security: prevents traversal)
+
+**Examples:**
+
+```bash
+# Single file
+aria import src/payment/charge.ts -o specs/
+
+# Whole project (recursive)
+aria import src/ -o specs/ --recursive
+
+# Limit to a target language
+aria import src/payment.ts -t rust -o specs/
+```
+
+The output is a **skeleton** — `requires` / `ensures` / `examples` are empty TODO markers. Use the `/aria reverse src/` skill (or manually) to enrich them.
+
+---
+
+## `aria drift`
+
+Compare an `.aria` spec with its TypeScript implementation and report divergences. Phase 10.2.
+
+```bash
+aria drift <spec> <impl> [options]
+```
+
+**Arguments:**
+- `<spec>` — A `.aria` file or directory.
+- `<impl>` — A `.ts` file or directory.
+
+If both are directories, files are matched by stem name (e.g. `specs/payment.aria` ↔ `src/payment.ts`).
+
+**Options:**
+- `-o, --output <file>` — Write the report to a file (default: stdout).
+- `--json` — Emit JSON instead of markdown.
+- `--fail-on <level>` — Exit code 1 if findings reach this severity (`error` or `warning`). Useful for CI.
+
+**Detected divergences:**
+
+| Category | Severity | Meaning |
+|---|---|---|
+| `missing-function` | error | Spec contract has no implementation function |
+| `missing-contract` | warning | Implementation function has no spec contract |
+| `signature-mismatch` | warning | Spec and impl signatures differ |
+| `type-mismatch` | warning | Spec type missing from implementation |
+| `behavior-mismatch` | warning | Spec behavior states ≠ impl enum variants |
+| `missing-state` | warning | Spec behavior has states not in impl enum |
+
+**Examples:**
+
+```bash
+# Single file pair
+aria drift specs/payment.aria src/payment.ts
+
+# Whole project, write to file
+aria drift specs/ src/ -o DRIFT.md
+
+# CI integration: fail on any warning or worse
+aria drift specs/ src/ --fail-on warning
+```
+
+**CI workflow example:**
+
+```yaml
+# .github/workflows/ci.yml
+- run: npx aria-lang drift specs/ src/ --fail-on warning
+```
 
 ---
 

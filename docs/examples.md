@@ -10,7 +10,7 @@ Three real-world specifications that ship with ARIA. Clone the repo to try them 
 
 ---
 
-## Authentication ([`auth.aria`](https://github.com/aria-lang/aria/blob/main/examples/auth.aria))
+## Authentication ([`auth.aria`](https://github.com/AxiomMarketing/ARIA/blob/main/examples/auth.aria))
 
 Covers user login, session management, and lockout behavior.
 
@@ -30,7 +30,7 @@ aria diagram examples/auth.aria -o docs/auth-flow.md
 
 ---
 
-## Payment processing ([`payment.aria`](https://github.com/aria-lang/aria/blob/main/examples/payment.aria))
+## Payment processing ([`payment.aria`](https://github.com/AxiomMarketing/ARIA/blob/main/examples/payment.aria))
 
 Complete payment + refund + commission split workflow.
 
@@ -52,7 +52,7 @@ aria diagram examples/payment.aria -o docs/payment-flow.md
 
 ---
 
-## E-commerce order ([`order.aria`](https://github.com/aria-lang/aria/blob/main/examples/order.aria))
+## E-commerce order ([`order.aria`](https://github.com/AxiomMarketing/ARIA/blob/main/examples/order.aria))
 
 Order lifecycle with cart validation, pricing, fulfillment, and returns.
 
@@ -98,3 +98,40 @@ aria init --module MyDomain -o specs/
 ```
 
 Then open `specs/my-domain.aria` and follow the [tutorial](tutorial.md). The [language reference](reference.md) and [CLI reference](cli-reference.md) cover everything else.
+
+## Using Claude Code with these examples
+
+If you have the `/aria` skill installed (`/plugin marketplace add AxiomMarketing/ARIA`), you can use these examples interactively:
+
+**Generate code from an example:**
+```
+/aria forward auth.aria
+```
+The skill walks through `aria check` → `aria gen` → `aria implement` → `aria test`.
+
+**Reverse-engineer your own code into an .aria similar to these examples:**
+```
+/aria reverse src/auth/
+```
+The skill imports your existing `auth/` directory and produces a `.aria` similar in shape to `auth.aria`.
+
+**Audit a project that has both specs and impl:**
+```
+/aria audit
+```
+Detects drift between your `.aria` specs and the corresponding `.ts` files.
+
+## Patterns to copy
+
+These three examples cover ~80% of what you'll need for typical backend work:
+
+| If you're building... | Start from |
+|---|---|
+| User authentication | [`auth.aria`](https://github.com/AxiomMarketing/ARIA/blob/main/examples/auth.aria) |
+| Money + transactions + fees | [`payment.aria`](https://github.com/AxiomMarketing/ARIA/blob/main/examples/payment.aria) |
+| Multi-step orchestration with rollback | [`payment.aria`](https://github.com/AxiomMarketing/ARIA/blob/main/examples/payment.aria) (look at `ProcessPaymentWithCommission`) |
+| State machine with lifecycle | [`order.aria`](https://github.com/AxiomMarketing/ARIA/blob/main/examples/order.aria) |
+| Rate limiting + lockout | [`auth.aria`](https://github.com/AxiomMarketing/ARIA/blob/main/examples/auth.aria) (look at `Login`) |
+| Cross-file imports | [`order.aria`](https://github.com/AxiomMarketing/ARIA/blob/main/examples/order.aria) |
+
+Don't write your spec from scratch — copy the closest example, rename the types, adapt the contracts. The patterns transfer.

@@ -6,7 +6,7 @@ description: ARIA language reference — types, contracts, behaviors, generics.
 
 # Language Reference
 
-This page is a concise index into the complete language reference in [`LANGUAGE.md`](https://github.com/aria-lang/aria/blob/main/LANGUAGE.md).
+This page is a concise index into the complete language reference in [`LANGUAGE.md`](https://github.com/AxiomMarketing/ARIA/blob/main/LANGUAGE.md).
 
 For a hands-on walkthrough, read the [tutorial](tutorial.md) first.
 
@@ -166,6 +166,23 @@ ensures
   from.balance == old(from.balance) - amount
 ```
 
+### Polymorphic dispatch (phase 7.3)
+
+A contract can route to sub-contracts based on an input field's value:
+
+```aria
+contract ProcessPayment
+  inputs
+    method: PaymentMethod
+    amount: Money
+  dispatch on method
+    when card -> ProcessCardPayment
+    when bank_transfer -> ProcessBankTransfer
+    when wallet -> ProcessWalletPayment
+```
+
+The TypeScript generator emits a `switch/case` dispatcher function that delegates to the named sub-contracts. The checker validates that the dispatch field exists in `inputs` and each target contract is defined.
+
 ## Behaviors (state machines)
 
 ```aria
@@ -256,13 +273,18 @@ behavior Order
 
 ## Reserved keywords
 
-See [`LANGUAGE.md`](https://github.com/aria-lang/aria/blob/main/LANGUAGE.md#reserved-keywords) for the full list. Notable additions:
+See [`LANGUAGE.md`](https://github.com/AxiomMarketing/ARIA/blob/main/LANGUAGE.md#reserved-keywords) for the full list. Notable additions across phases:
 
-- Phase 7.5: `supersedes`, `deprecated`
-- Phase 7.4: `always`, `never`, `eventually`, `leads_to`, `within`
+- **Phase 7.1** — `of` (already a keyword, now used for generics)
+- **Phase 7.2** — `computed`, `as` (computed fields)
+- **Phase 7.3** — `dispatch` (polymorphic routing)
+- **Phase 7.4** — `always`, `never`, `eventually`, `leads_to`, `within` (temporal assertions)
+- **Phase 7.5** — `supersedes`, `deprecated` (versioning)
+
+If you have an existing `.aria` spec that uses any of these as a field name or contract name, you'll need to rename it.
 
 ---
 
 ## Full reference
 
-The complete grammar, every keyword, edge cases, and formal semantics are in [`LANGUAGE.md`](https://github.com/aria-lang/aria/blob/main/LANGUAGE.md) (about 1300 lines). This page is a fast lookup — the source is authoritative.
+The complete grammar, every keyword, edge cases, and formal semantics are in [`LANGUAGE.md`](https://github.com/AxiomMarketing/ARIA/blob/main/LANGUAGE.md) (about 1300 lines). This page is a fast lookup — the source is authoritative.

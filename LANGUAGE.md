@@ -1316,16 +1316,145 @@ behavior SessionLifecycle
 
 ---
 
-## Summary of Syntax
+## Phase 7+ Features (added since v0.1.0)
+
+The following constructs were added in subsequent ARIA releases. They are fully supported in v0.1.4+.
+
+### Generic types (Phase 7.1)
+
+Types can declare type parameters:
+
+```aria
+type Box of T is Record
+  value: T
+
+type Result of T, E is Enum
+  ok
+  err
+```
+
+Generic instantiation in contract inputs:
+
+```aria
+contract Wrap
+  inputs
+    boxed: Box of Money
+    result: Result of Money, Error
+  requires
+    boxed.value > 0
+```
+
+The TypeScript generator emits `export type Result<T, E> = ...` and the checker resolves type parameters within their defining type.
+
+### Computed fields (Phase 7.2)
+
+Record fields can be derived from other fields:
+
+```aria
+type Order is Record
+  subtotal: Money
+  tax: Money
+  total: Money computed as subtotal + tax
+  item_count: Integer computed as length(items)
+```
+
+Storage fields go into the Zod schema; computed fields are emitted separately:
+- **TypeScript**: `<Name>Computed` interface intersected with the base schema-inferred type
+- **Rust**: `impl` method with `todo!()` body
+- **Python**: `@computed_field @property` with `NotImplementedError` body
+
+The expression is stored as a raw string — the consumer (or AI via `aria implement`) supplies the actual computation.
+
+### Polymorphic dispatch (Phase 7.3)
+
+A contract can route to sub-contracts based on an input field's value:
+
+```aria
+contract ProcessPayment
+  inputs
+    method: PaymentMethod
+    amount: Money
+
+  dispatch on method
+    when card -> ProcessCardPayment
+    when bank_transfer -> ProcessBankTransfer
+    when wallet -> ProcessWalletPayment
+```
+
+The TypeScript generator emits a `switch/case` dispatcher function. The checker validates that the dispatch field exists in `inputs` and each target contract is defined.
+
+### Temporal assertions (Phase 7.4)
+
+Inside `behavior`'s `invariants` block, the following temporal operators are recognized:
+
+| Keyword | Meaning |
+|---|---|
+| `once X implies Y` | From the first time X holds, Y must also hold |
+| `always X` | X must be true in every state |
+| `never X` | X must never be true |
+| `eventually X` | X must become true at some point |
+| `leads_to X -> Y within N hours` | Once X holds, Y must hold within the time bound |
+
+Time units: `seconds`, `minutes`, `hours`, `days`.
+
+```aria
+behavior Order
+  states created paid shipped delivered
+  initial created
+  transitions
+    created -> paid
+    paid -> shipped
+    shipped -> delivered
+
+  invariants
+    always balance >= 0
+    never status == invalid
+    eventually delivered_at exists
+    leads_to created -> paid within 24 hours
+```
+
+Phase 7.4 ships **syntax + documentation propagation only**. There is no TLA+ model checker or runtime verification engine — the assertions are structured documentation that downstream tools (Mermaid notes, JSDoc `@invariant`, runtime invariant arrays) can consume.
+
+### Versioned modules + deprecated contracts (Phase 7.5)
+
+Module header can declare a version supersession:
+
+```aria
+module PaymentV2
+  version "2.0"
+  target typescript
+  supersedes "Payment" version "1.0"
+```
+
+Contracts can be marked as deprecated:
+
+```aria
+contract OldPay
+  --- Use NewPay instead
+  deprecated "Use NewPay — switching to v2 API"
+  inputs
+    amount: Money
+  requires
+    amount > 0
+```
+
+The TypeScript generator emits a JSDoc `@deprecated` tag.
+
+## Updated Summary of Syntax
 
 | Construct | Example |
 |-----------|---------|
 | Module | `module PaymentProcessing version "1.0" target typescript` |
+| Module supersession | `supersedes "Payment" version "1.0"` |
 | Type | `type Money is Integer where self > 0` |
+| Generic type | `type Result of T, E is Enum` |
 | Record | `type Account is Record id: AccountId email: Email` |
+| Computed field | `total: Money computed as subtotal + tax` |
 | Enum | `type Status is Enum active frozen closed` |
 | List | `type Accounts is List of Account where length(self) <= 100` |
 | Contract | `contract TransferFunds inputs ... requires ... ensures ...` |
+| Deprecated contract | `deprecated "reason"` inside contract body |
+| Polymorphic dispatch | `dispatch on field when value -> SubContract` |
 | Behavior | `behavior OrderLifecycle states ... transitions ...` |
 | Requires | `requires account.balance >= amount` |
 | Ensures | `ensures balance == old(balance) - amount` |
@@ -1334,7 +1463,9 @@ behavior SessionLifecycle
 | Effect | `effects sends Email writes AuditLog` |
 | Steps | `steps 1. Contract1 then result 2. Contract2 then result` |
 | Transition | `state1 -> state2 when condition ensures postcondition` |
-| Invariant | `invariants once paid implies paid_at exists` |
+| Invariant (classical) | `invariants once paid implies paid_at exists` |
+| Invariant (temporal) | `invariants always balance >= 0` |
+| Time-bounded liveness | `leads_to created -> paid within 24 hours` |
 | Comment | `-- line comment --- doc comment` |
 
 ---
@@ -1347,4 +1478,12 @@ behavior SessionLifecycle
 4. **Test**: `aria test myspec.aria --run`
 5. **Implement**: `aria implement myspec.aria --ai claude`
 
-For questions, examples, and community support, visit [ARIA documentation](https://aria.dev).
+Or use the Claude Code skill for an end-to-end interactive experience:
+
+```
+/plugin marketplace add AxiomMarketing/ARIA
+/plugin install aria@aria-lang
+/aria <feature description>
+```
+
+For the source, issues, and contributions, visit the [ARIA repository](https://github.com/AxiomMarketing/ARIA).
