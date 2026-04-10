@@ -1,0 +1,11 @@
+{
+  "name": "aria",
+  "description": "Complete ARIA workflow orchestrator with 4 sub-workflows (forward / reverse / maintain / setup) and integration of all 12 ARIA CLI commands.",
+  "version": "0.1.4",
+  "author": {
+    "name": "Jonathan Dewaele"
+  },
+  "homepage": "https://github.com/AxiomMarketing/ARIA",
+  "repository": "https://github.com/AxiomMarketing/ARIA",
+  "license": "MIT"
+}

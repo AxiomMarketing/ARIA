@@ -187,6 +187,26 @@ ARIA combines the best ideas from:
 
 See [LANGUAGE.md](LANGUAGE.md) for the complete reference.
 
+## Claude Code Plugin
+
+Install the `/aria` skill in Claude Code with **one command**:
+
+```
+/plugin marketplace add AxiomMarketing/ARIA
+/plugin install aria@aria-lang
+```
+
+After install, type `/aria` and the skill routes to one of 4 sub-workflows automatically based on your project state and intent:
+
+| Command | Workflow | What it does |
+|---|---|---|
+| `/aria <feature description>` | **forward** | Generates `.aria` spec from natural language → code → tests → AI implementation |
+| `/aria reverse src/` | **reverse** | Imports existing TypeScript into `.aria` skeletons + drift detection |
+| `/aria audit` | **maintain** | Validates all specs + detects spec/impl drift + proposes fixes |
+| `/aria install` | **setup** | First-time install: configures `CLAUDE.md`, creates `specs/`, scaffolds an example |
+
+The skill orchestrates all 12 ARIA CLI commands (`check`, `gen`, `diagram`, `test`, `implement`, `init`, `watch`, `fmt`, `setup`, `import`, `drift`, `aria-mcp`) via 17 progressive step files.
+
 ## Editor Support
 
 | Editor | Syntax | AI integration | Setup |

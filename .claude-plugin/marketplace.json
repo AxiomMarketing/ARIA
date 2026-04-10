@@ -1,0 +1,43 @@
+{
+  "name": "aria-lang",
+  "owner": {
+    "name": "Jonathan Dewaele",
+    "email": "jonathan@axiommarketing.dev"
+  },
+  "metadata": {
+    "description": "ARIA — AI-Readable Intent Architecture. Formal specification language compiler with skills, MCP server, and reverse-engineering tools for AI-driven development.",
+    "version": "0.1.4"
+  },
+  "plugins": [
+    {
+      "name": "aria",
+      "source": "./plugins/aria",
+      "description": "Complete ARIA workflow orchestrator. Routes to forward (build new), reverse (import existing TS), maintain (audit drift), or setup (first-time install) workflows. Integrates all 12 ARIA CLI commands plus the MCP server.",
+      "version": "0.1.4",
+      "author": {
+        "name": "Jonathan Dewaele"
+      },
+      "homepage": "https://github.com/AxiomMarketing/ARIA",
+      "repository": "https://github.com/AxiomMarketing/ARIA",
+      "license": "MIT",
+      "keywords": [
+        "aria",
+        "formal-spec",
+        "code-generation",
+        "ai",
+        "contracts",
+        "reverse-engineering",
+        "drift-detection"
+      ],
+      "category": "code-generation",
+      "tags": [
+        "spec-first",
+        "design-by-contract",
+        "typescript",
+        "rust",
+        "python",
+        "ai-readable"
+      ]
+    }
+  ]
+}

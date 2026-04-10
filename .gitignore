@@ -30,7 +30,8 @@ Thumbs.db
 .vscode/
 
 # ---------- Claude Code (project-specific, not for public repo) ----------
-.claude/
+# Note: .claude-plugin/ and plugins/ are NOT excluded — they form the public marketplace
+/.claude/
 CLAUDE.md
 
 # ---------- Environment / Secrets ----------
