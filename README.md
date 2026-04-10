@@ -208,23 +208,145 @@ See [LANGUAGE.md](LANGUAGE.md) for the complete reference.
 
 ## Claude Code Plugin
 
-Install the `/aria` skill in Claude Code with **one command**:
+The `/aria` plugin gives Claude Code a complete spec-first workflow. Install it once, then use it in any project.
+
+### Install
 
 ```
 /plugin marketplace add AxiomMarketing/ARIA
 /plugin install aria@aria-lang
 ```
 
-After install, type `/aria` and the skill routes to one of 4 sub-workflows automatically based on your project state and intent:
+This downloads the skill files into your local Claude Code plugin cache (`~/.claude/plugins/cache/`). After install, type `/aria` followed by what you want to do — the skill auto-detects which workflow to run based on your project state and your intent.
 
-| Command | Workflow | What it does |
-|---|---|---|
-| `/aria <feature description>` | **forward** | Generates `.aria` spec from natural language → code → tests → AI implementation |
-| `/aria reverse src/` | **reverse** | Imports existing TypeScript into `.aria` skeletons + drift detection |
-| `/aria audit` | **maintain** | Validates all specs + detects spec/impl drift + proposes fixes |
-| `/aria install` | **setup** | First-time install: configures `CLAUDE.md`, creates `specs/`, scaffolds an example |
+### How the skill works
 
-The skill orchestrates all 12 ARIA CLI commands (`check`, `gen`, `diagram`, `test`, `implement`, `init`, `watch`, `fmt`, `setup`, `import`, `drift`, `aria-mcp`) via 17 progressive step files.
+When you type `/aria <something>`, the skill goes through these phases:
+
+```
+1. ROUTE        Read your project (package.json, specs/, CLAUDE.md)
+   ↓            Detect intent from your input
+   ↓            Pick one of 4 workflows: forward / reverse / maintain / setup
+   ↓
+2. EXECUTE      Run a sequence of small step files (3-6 per workflow)
+   ↓            Each step is focused: parse, validate, generate, implement, test
+   ↓            Steps call the underlying ARIA CLI (check, gen, implement, etc.)
+   ↓
+3. CONFIRM      Pause at decision points (skip with -a/--auto)
+   ↓            Show progress, ask for approval before expensive ops (AI calls)
+   ↓
+4. REPORT       Final summary with files created, tests results, next steps
+```
+
+The skill is **stateful across steps** but **stateless across invocations** — every `/aria` call starts from scratch and re-detects the project state.
+
+### The 4 workflows
+
+| Command | Workflow | Trigger | Steps |
+|---|---|---|---|
+| `/aria <feature description>` | **forward** | New feature from natural language | parse → spec → review → gen → implement → test |
+| `/aria reverse src/` | **reverse** | Existing TypeScript codebase | scan → import → enrich → drift |
+| `/aria audit` | **maintain** | Existing ARIA project | check → drift → propose fixes |
+| `/aria install` | **setup** | First-time install in a project | install → configure → scaffold |
+
+The router detects intent automatically — you can also be explicit by saying `/aria forward ...`, `/aria reverse src/`, `/aria audit`, etc.
+
+### Example 1 — Build a new feature from scratch (forward)
+
+You're building a marketplace and need to compute commission splits. You type:
+
+```
+/aria a commission calculator that splits sale 70/30 between artist and platform,
+with a minimum 100-cent platform commission, rejecting inactive artists
+```
+
+The skill walks through:
+
+1. **Parse** — extracts module name (`Marketplace`), detects target language (TypeScript from `package.json`)
+2. **Spec** — writes `specs/marketplace.aria` with the `CalculateCommission` contract, `Money` type, `Artist` record, requires/ensures/examples
+3. **Review** — shows you the spec, runs `aria check`, asks for approval
+4. **Gen** — runs `aria gen specs/marketplace.aria -o src/marketplace/` → produces `marketplace.types.ts`, `marketplace.contracts.ts`, `marketplace.test.ts`
+5. **Implement** — runs `aria implement` → Claude fills the `throw new Error("Not implemented")` stubs with real code that satisfies requires/ensures
+6. **Test** — runs `npx vitest src/marketplace/` and reports pass/fail
+
+End result : a fully tested `calculateCommission` function in 1 prompt.
+
+### Example 2 — Import an existing codebase (reverse)
+
+You have a Next.js project with no specs and want to retrofit ARIA on top. You type:
+
+```
+/aria reverse src/
+```
+
+The skill walks through:
+
+1. **Scan** — counts your `.ts` files (skipping `node_modules`, `*.test.ts`, `*.d.ts`), checks for existing specs, presents the plan
+2. **Import** — runs `aria import src/ -o specs/ --recursive` → generates a `.aria` skeleton per `.ts` file
+3. **Enrich** — for each skeleton, reads the source `.ts` AND its tests, fills in the `requires` / `ensures` / `examples` / `on_failure` TODOs based on what the actual code does
+4. **Drift** — runs `aria drift specs/ src/` → produces `specs/DRIFT.md` with all incoherences, then proposes an action plan
+
+End result : you have formal specs for code you've already shipped, and a concrete list of what to fix.
+
+### Example 3 — Audit an existing ARIA project (maintain)
+
+You've been using ARIA for weeks and want to verify nothing has drifted. You type:
+
+```
+/aria audit
+```
+
+The skill walks through:
+
+1. **Check** — runs `aria check specs/` and `aria fmt --check` on every spec
+2. **Drift** — runs `aria drift specs/ src/` and parses the report
+3. **Fix** — for each finding, proposes a concrete edit (in spec or in code), shows the diff, asks for approval, applies, re-validates
+
+End result : your specs and your code are back in sync, or you have a clear list of intentional divergences.
+
+### Example 4 — First-time setup in a fresh project (setup)
+
+You just installed `aria-lang` and want to bootstrap your project. You type:
+
+```
+/aria install
+```
+
+The skill walks through:
+
+1. **Install** — detects your package manager (npm/yarn/pnpm/bun), runs `<pm> install --save-dev aria-lang`
+2. **Configure** — runs `aria setup` to inject the `## ARIA Specifications` section into your `CLAUDE.md`, creates `specs/`, updates `.gitignore` to exclude `src/generated/`, optionally adds `aria-mcp` to your IDE's MCP config
+3. **Scaffold** — runs `aria init --module Example -o specs/` to create your first spec, validates it, prints a "first commands" guide
+
+End result : a project ready for spec-first development in 30 seconds.
+
+### CLI commands integrated by the skill
+
+The 4 workflows together call all 12 ARIA CLI commands:
+
+| Command | Used by |
+|---|---|
+| `aria check` | forward, maintain, reverse, setup |
+| `aria gen` | forward, setup |
+| `aria diagram` | forward, maintain |
+| `aria test` | forward |
+| `aria implement --ai claude` | forward |
+| `aria init` | forward, setup |
+| `aria fmt` | maintain |
+| `aria setup` | setup |
+| `aria import` | reverse |
+| `aria drift` | reverse, maintain |
+| `aria watch` | (available standalone) |
+| `aria-mcp` | setup (MCP config injection) |
+
+### Tips
+
+- **Skip prompts with `-a` or `--auto`** : `/aria -a build a payment processor` runs the full forward workflow without asking for confirmations.
+- **Auto-detection is heuristic** : if the skill picks the wrong workflow, be explicit with `/aria reverse src/` or `/aria audit`.
+- **The skill never modifies your code without permission** — every destructive op (overwrite, AI implement) is gated behind a confirmation (unless `--auto`).
+- **Tokens cost** : the `forward` workflow's `implement` step calls Claude API per contract. Set `ANTHROPIC_API_KEY` and expect ~1k-5k tokens per contract.
+
+The skill orchestrates all 12 ARIA CLI commands via 17 progressive step files. See `plugins/aria/skills/aria/` in this repo for the source.
 
 ## Editor Support
 
