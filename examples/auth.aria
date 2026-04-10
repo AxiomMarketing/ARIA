@@ -1,0 +1,279 @@
+module Authentication
+  version "1.0"
+  target typescript
+  author "Jonathan Dewaele"
+
+--- ============================================================================
+--- TYPES
+--- ============================================================================
+
+type Email is String
+  where self matches /^[^@]+@[^@]+\.[^@]+$/
+  where length(self) <= 255
+
+type PasswordHash is String
+  where length(self) == 60
+  where self starts_with "$2b$"
+
+type SessionToken is String
+  where length(self) == 64
+
+type UserId is String
+  where length(self) == 26
+  where self starts_with "usr_"
+
+type LoginAttempt is Record
+  email: Email
+  password: String
+  ip_address: String
+  timestamp: DateTime
+
+type Session is Record
+  token: SessionToken
+  user_id: UserId
+  expires_at: DateTime
+  created_at: DateTime
+  ip_address: String
+
+type User is Record
+  id: UserId
+  email: Email
+  password_hash: PasswordHash
+  status: String
+  locked_until: DateTime
+  failed_login_attempts: Integer
+  created_at: DateTime
+
+type LoginResult is Record
+  success: Boolean
+  session: Session
+  error: String
+  user_id: UserId
+
+--- ============================================================================
+--- CONTRACTS
+--- ============================================================================
+
+contract Login
+  --- Authenticates a user and creates a session if credentials are valid
+
+  inputs
+    attempt: LoginAttempt
+
+  effects
+    writes AuditLog with action: "login_attempt", email: attempt.email
+    creates Session when success
+    increments failed_login_attempts when failure
+
+  requires
+    attempt.email is valid Email
+    length(attempt.password) >= 8
+    attempt.password length <= 128
+
+  ensures
+    result.success implies result.session.expires_at > now()
+    result.success implies result.session.user_id exists
+    result.success implies result.session.token exists
+    not result.success implies result.session == null
+    result.success implies result.error == null
+
+  on_failure
+    when user not found
+      return InvalidCredentials with reason: "invalid_email_or_password"
+    when password incorrect
+      return InvalidCredentials with reason: "invalid_email_or_password"
+    when account locked
+      return AccountLocked with unlock_at: user.locked_until, minutes_remaining: 15
+
+  rate_limit
+    max 5 per minute per ip_address
+    max 10 per hour per email
+
+  examples
+    --- Successful login
+    given attempt: {
+      email: "user@example.com",
+      password: "validSecurePass123!",
+      ip_address: "192.168.1.100",
+      timestamp: "2024-01-15T10:30:00Z"
+    }
+    then
+      result.success == true
+      result.session.token exists
+      result.session.expires_at > now()
+      result.error == null
+
+    --- Failed login - invalid credentials
+    given attempt: {
+      email: "user@example.com",
+      password: "wrongPassword",
+      ip_address: "192.168.1.100",
+      timestamp: "2024-01-15T10:35:00Z"
+    }
+    then
+      result.success == false
+      result == InvalidCredentials with reason: "invalid_email_or_password"
+      result.session == null
+
+    --- Failed login - account locked after too many attempts
+    given attempt: {
+      email: "attacker@test.com",
+      password: "guess123456",
+      ip_address: "203.0.113.50",
+      timestamp: "2024-01-15T10:40:00Z"
+    }
+    then
+      result.success == false
+      result == AccountLocked
+      result.minutes_remaining == 15
+
+contract ValidateSession
+  --- Validates an existing session token and checks expiration
+
+  inputs
+    token: SessionToken
+
+  requires
+    token exists
+    length(token) == 64
+
+  ensures
+    result.valid implies result.session.expires_at > now()
+    result.valid implies result.user_id exists
+    not result.valid implies result.session == null
+
+  on_failure
+    when token not found
+      return SessionNotFound with token: token
+    when session expired
+      return SessionExpired with expired_at: session.expires_at
+
+  examples
+    --- Valid session
+    given token: "abc123def456abc123def456abc123def456abc123def456abc123def456abcd"
+    then
+      result.valid == true
+      result.session.expires_at > now()
+      result.user_id starts_with "usr_"
+
+    --- Session not found
+    given token: "invalid000000000000000000000000000000000000000000000000000000000000"
+    then
+      result.valid == false
+      result == SessionNotFound
+
+contract Logout
+  --- Invalidates a user session
+
+  inputs
+    token: SessionToken
+    user_id: UserId
+
+  effects
+    writes AuditLog with action: "logout", user_id: user_id
+    invalidates Session with token: token
+
+  requires
+    token exists
+    user_id exists
+
+  ensures
+    result.success == true
+    session.token is invalid
+
+  examples
+    --- Successful logout
+    given
+      token: "abc123def456abc123def456abc123def456abc123def456abc123def456abcd"
+      user_id: "usr_user123456789012345678"
+    then
+      result.success == true
+      session.is_valid == false
+
+--- ============================================================================
+--- BEHAVIORS
+--- ============================================================================
+
+behavior LoginFlow
+  --- Complete authentication flow with states and transitions
+
+  states
+    anonymous          --- Not authenticated
+    authenticating     --- Login in progress
+    authenticated      --- Successfully logged in
+    locked             --- Account temporarily locked
+    expired            --- Session expired
+    logging_out        --- Logout in progress
+
+  initial anonymous
+
+  transitions
+    anonymous -> authenticating
+      when login_attempt received
+      ensures attempt.timestamp exists
+
+    authenticating -> authenticated
+      when credentials valid
+      ensures session.token exists
+      ensures session.expires_at > now()
+
+    authenticating -> anonymous
+      when credentials invalid
+      when failed_attempts < 5
+      ensures failed_attempt_count incremented
+
+    authenticating -> locked
+      when credentials invalid
+      when failed_attempts >= 5
+      ensures lockout_duration == 15 minutes
+      ensures account.locked_until == now() + 15 minutes
+
+    locked -> anonymous
+      when lockout_expired
+      ensures failed_attempts reset to 0
+
+    locked -> anonymous
+      when admin_unlock requested
+      ensures failed_attempts reset to 0
+
+    authenticated -> expired
+      when session.expires_at < now()
+
+    authenticated -> logging_out
+      when logout_requested
+
+    logging_out -> anonymous
+      ensures session.token invalidated
+      ensures audit_log recorded
+
+    expired -> authenticating
+      when login_attempt received
+
+  invariants
+    once authenticated implies session exists
+    once authenticated implies session.token exists
+    once locked implies failed_attempts >= 5
+    once locked implies locked_until > now()
+    authenticated implies session.expires_at > authenticated_at
+
+  forbidden
+    authenticated -> locked          --- Cannot lock an active session
+    expired -> authenticated         --- Cannot reuse expired session
+    logging_out -> authenticated     --- Cannot stay authenticated during logout
+    locked -> authenticating         --- Cannot retry immediately when locked
+
+  examples
+    flow "happy path - successful login"
+      anonymous -> authenticating -> authenticated
+
+    flow "failed login - too many attempts triggers lock"
+      anonymous -> authenticating -> anonymous -> authenticating -> anonymous -> authenticating -> anonymous -> authenticating -> anonymous -> authenticating -> locked
+
+    flow "locked account unlock flow"
+      locked -> anonymous -> authenticating -> authenticated
+
+    flow "session expiration"
+      anonymous -> authenticating -> authenticated -> expired -> authenticating -> authenticated
+
+    flow "logout flow"
+      anonymous -> authenticating -> authenticated -> logging_out -> anonymous

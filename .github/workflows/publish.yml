@@ -1,0 +1,60 @@
+name: Publish to npm
+
+# Triggered by pushing a version tag like v0.1.0 or manually via workflow_dispatch.
+#
+# Prerequisites (one-time setup on npmjs.com before the first publish):
+#
+#   OPTION A — Trusted Publishing (recommended, OIDC-only, no token):
+#     1. Publish v0.1.0 manually ONCE from a local machine with `npm publish --access public`
+#        (provenance will NOT be attached on this first publish)
+#     2. Go to https://www.npmjs.com/package/aria-lang/access and configure
+#        "Trusted Publisher" pointing to aria-lang/aria + .github/workflows/publish.yml
+#     3. Remove `NODE_AUTH_TOKEN` from the publish step below and delete NPM_TOKEN secret
+#     4. Subsequent tag pushes will publish with full provenance attestation via OIDC
+#
+#   OPTION B — Granular Access Token (works immediately):
+#     1. Create a Granular Access Token at https://www.npmjs.com/settings/TOKENS
+#        with "Publish" permission scoped to the aria-lang package
+#     2. Add the token as repository secret NPM_TOKEN
+#     3. Provenance attestation will attach automatically because id-token: write is set
+#
+# All testing/building happens in prepublishOnly (defined in package.json), so this
+# workflow does NOT duplicate typecheck/test/build steps.
+
+on:
+  push:
+    tags:
+      - 'v*.*.*'
+  workflow_dispatch:
+
+jobs:
+  publish:
+    name: Build and publish
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          registry-url: 'https://registry.npmjs.org'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Verify package contents
+        run: npm pack --dry-run
+
+      # prepublishOnly in package.json runs typecheck + test:run + build
+      # before the actual publish, so we don't duplicate that here.
+      - name: Publish to npm (public)
+        run: npm publish --access public --provenance
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}

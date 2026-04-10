@@ -1,0 +1,308 @@
+module PaymentProcessing
+  version "1.0"
+  target typescript, rust
+  author "Jonathan Dewaele"
+
+--- ============================================================================
+--- TYPES
+--- ============================================================================
+
+type Money is Integer
+  where self > 0
+  where self <= 10_000_000
+  unit "cents"
+
+type Currency is Enum
+  eur    --- Euro
+  usd    --- US Dollar
+  gbp    --- British Pound
+
+type PaymentMethod is Enum
+  card            --- Credit/debit card
+  bank_transfer   --- Direct bank transfer
+  wallet          --- Digital wallet (Stripe, PayPal)
+
+type TransactionId is String
+  where length(self) == 32
+  where self starts_with "txn_"
+
+type PaymentStatus is Enum
+  pending      --- Awaiting processing
+  processing   --- Being processed
+  completed    --- Successfully completed
+  failed       --- Payment declined
+  refunded     --- Fully refunded
+  partially_refunded  --- Partially refunded
+
+type CardInfo is Record
+  last_four: String
+  brand: String
+  expiry_month: Integer
+  expiry_year: Integer
+
+type PaymentDetails is Record
+  transaction_id: TransactionId
+  amount: Money
+  currency: Currency
+  method: PaymentMethod
+  status: PaymentStatus
+  created_at: DateTime
+  completed_at: DateTime
+
+type Commission is Record
+  artist_share: Money
+  platform_share: Money
+  total: Money
+
+type Artist is Record
+  id: String
+  status: String
+  balance: Money
+
+--- ============================================================================
+--- CONTRACTS
+--- ============================================================================
+
+contract ChargePayment
+  --- Processes a payment charge with proper status tracking and error handling
+
+  inputs
+    amount: Money
+    currency: Currency
+    method: PaymentMethod
+    card: CardInfo
+
+  requires
+    amount > 0
+    amount <= 10_000_000
+    method in [card, bank_transfer, wallet]
+    card.expiry_year >= 2024
+
+  ensures
+    result.success implies result.transaction_id exists
+    result.success implies result.status == completed
+    result.success implies result.amount == amount
+    not result.success implies result.status in [failed, pending]
+
+  on_failure
+    when amount exceeds card limit
+      return PaymentDeclined with reason: "limit_exceeded", retry_after: 3600
+    when card expired
+      return InvalidCard with reason: "expired", card_last_four: card.last_four
+    when insufficient_funds
+      return PaymentDeclined with reason: "insufficient_funds", available_balance: 0
+
+  examples
+    --- Successful charge
+    given
+      amount: 5000
+      currency: eur
+      method: card
+      card: { last_four: "4242", brand: "visa", expiry_month: 12, expiry_year: 2026 }
+    then
+      result.success == true
+      result.status == completed
+      result.transaction_id starts_with "txn_"
+
+    --- Failed charge due to expired card
+    given
+      amount: 3000
+      currency: eur
+      method: card
+      card: { last_four: "4444", brand: "visa", expiry_month: 6, expiry_year: 2023 }
+    then
+      result.success == false
+      result == InvalidCard with reason: "expired"
+
+contract RefundPayment
+  --- Refunds a previously completed payment
+
+  inputs
+    transaction_id: TransactionId
+    amount: Money
+    reason: String
+
+  requires
+    transaction_id exists
+    amount > 0
+    amount <= 10_000_000
+    reason in [customer_request, order_cancelled, duplicate, other]
+
+  ensures
+    result.success implies result.status in [refunded, partially_refunded]
+    result.success implies result.refund_amount == amount
+    not result.success implies result.status == failed
+
+  on_failure
+    when transaction not found
+      return TransactionNotFound with transaction_id: transaction_id
+    when refund exceeds original
+      return InvalidRefund with original_amount: 0, requested_refund: amount
+    when processing error
+      return RefundFailed with reason: "payment_gateway_error"
+
+  examples
+    --- Full refund
+    given
+      transaction_id: "txn_abc123def456"
+      amount: 5000
+      reason: "customer_request"
+    then
+      result.success == true
+      result.status == refunded
+      result.refund_amount == 5000
+
+    --- Refund failed - transaction not found
+    given
+      transaction_id: "txn_invalid000"
+      amount: 2000
+      reason: "order_cancelled"
+    then
+      result.success == false
+      result == TransactionNotFound
+
+contract CalculateCommission
+  --- Splits sale amount between artist (70%) and platform (30%)
+  --- Ensures minimum 100 cents platform commission
+
+  inputs
+    sale_amount: Money
+    artist: Artist
+
+  requires
+    sale_amount > 0
+    sale_amount <= 10_000_000
+    artist.status == "active"
+
+  ensures
+    result.artist_share + result.platform_share == sale_amount
+    result.platform_share >= 100
+    result.artist_share == sale_amount - result.platform_share
+    result.artist_share >= 0
+
+  examples
+    --- Normal split: sale 1000 cents
+    given
+      sale_amount: 1000
+      artist: { id: "art_001", status: "active", balance: 0 }
+    then
+      result.artist_share == 700
+      result.platform_share == 300
+      result.total == 1000
+
+    --- Minimum platform commission enforced: sale 200 cents
+    given
+      sale_amount: 200
+      artist: { id: "art_002", status: "active", balance: 0 }
+    then
+      result.artist_share == 100
+      result.platform_share == 100
+      result.total == 200
+
+contract ProcessPaymentWithCommission
+  --- Orchestrates payment processing with commission calculation
+
+  inputs
+    amount: Money
+    currency: Currency
+    method: PaymentMethod
+    card: CardInfo
+    artist: Artist
+
+  steps
+    1. ChargePayment with amount, currency, method, card
+       then payment_result
+
+    2. CalculateCommission with amount, artist
+       then commission
+
+  requires
+    amount > 100
+    payment_result.success == true
+
+  ensures
+    commission.artist_share + commission.platform_share == amount
+    commission.platform_share >= 100
+
+  compensate
+    on step 1 success and step 2 failure
+      RefundPayment with transaction_id: payment_result.transaction_id, amount: amount, reason: "commission_calculation_failed"
+
+--- ============================================================================
+--- BEHAVIORS
+--- ============================================================================
+
+behavior PaymentLifecycle
+  --- Complete lifecycle of a payment from initiation to final state
+
+  states
+    initiated       --- Payment request created
+    pending         --- Awaiting processing from gateway
+    processing      --- Currently being processed
+    completed       --- Successfully completed
+    failed          --- Payment failed/declined
+    refunded        --- Fully refunded
+    partially_refunded  --- Partially refunded
+    disputed        --- Under dispute
+
+  initial initiated
+
+  transitions
+    initiated -> pending
+      when payment_method valid
+      ensures payment.created_at exists
+
+    pending -> processing
+      when gateway_ready == true
+      ensures processing_started == true
+
+    processing -> completed
+      when gateway_success == true
+      ensures payment.completed_at exists
+      ensures payment.status == "completed"
+
+    processing -> failed
+      when gateway_declined == true
+      ensures payment.status == "failed"
+      ensures payment.completed_at exists
+
+    completed -> refunded
+      when refund.approved == true
+      when refund.amount == payment.amount
+      ensures payment.status == "refunded"
+
+    completed -> partially_refunded
+      when refund.approved == true
+      when refund.amount < payment.amount
+      ensures payment.status == "partially_refunded"
+
+    failed -> initiated
+      when retry_requested == true
+      when retry_count < 3
+
+    disputed -> pending
+      when dispute_resolved == true
+
+  invariants
+    once completed implies payment.amount > 0
+    once completed implies payment.transaction_id exists
+    once refunded implies payment.refund_completed_at exists
+    payment.created_at <= payment.completed_at
+
+  forbidden
+    failed -> completed        --- Cannot succeed after failure
+    refunded -> processing     --- Cannot reprocess refunded payment
+    partially_refunded -> initiated  --- Cannot restart after partial refund
+
+  examples
+    flow "happy path - full payment"
+      initiated -> pending -> processing -> completed
+
+    flow "payment declined with retry"
+      initiated -> pending -> processing -> failed -> initiated -> pending -> processing -> completed
+
+    flow "full refund workflow"
+      initiated -> pending -> processing -> completed -> refunded
+
+    flow "partial refund workflow"
+      initiated -> pending -> processing -> completed -> partially_refunded

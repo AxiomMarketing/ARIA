@@ -1,0 +1,55 @@
+{
+  "name": "aria-lang",
+  "displayName": "ARIA Language Support",
+  "description": "Syntax highlighting, snippets, diagnostics and Mermaid preview for ARIA formal specification files (.aria)",
+  "version": "0.1.0",
+  "publisher": "aria-lang",
+  "repository": { "type": "git", "url": "https://github.com/aria-lang/aria" },
+  "engines": { "vscode": "^1.85.0" },
+  "categories": ["Programming Languages", "Snippets", "Linters"],
+  "activationEvents": ["onLanguage:aria"],
+  "main": "./out/extension.js",
+  "scripts": {
+    "compile": "tsc -p ./ && tsc -p ./server",
+    "watch": "tsc -w -p ./",
+    "package": "vsce package"
+  },
+  "devDependencies": {
+    "@types/vscode": "^1.85.0",
+    "@types/node": "^22.0.0",
+    "typescript": "^5.7.0",
+    "@vscode/vsce": "^3.0.0"
+  },
+  "dependencies": {
+    "vscode-languageclient": "^9.0.1"
+  },
+  "contributes": {
+    "languages": [{
+      "id": "aria",
+      "aliases": ["ARIA", "aria"],
+      "extensions": [".aria"],
+      "configuration": "./language-configuration.json",
+      "icon": { "light": "./icons/aria-light.svg", "dark": "./icons/aria-dark.svg" }
+    }],
+    "grammars": [{
+      "language": "aria",
+      "scopeName": "source.aria",
+      "path": "./syntaxes/aria.tmLanguage.json"
+    }],
+    "snippets": [{
+      "language": "aria",
+      "path": "./snippets/aria.json"
+    }],
+    "commands": [
+      { "command": "aria.preview", "title": "ARIA: Preview Mermaid Diagram" },
+      { "command": "aria.check", "title": "ARIA: Check Current File" },
+      { "command": "aria.gen", "title": "ARIA: Generate Code" },
+      { "command": "aria.format", "title": "ARIA: Format File" }
+    ],
+    "menus": {
+      "editor/title": [
+        { "when": "resourceLangId == aria", "command": "aria.preview", "group": "navigation" }
+      ]
+    }
+  }
+}

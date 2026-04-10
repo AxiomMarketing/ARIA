@@ -1,0 +1,22 @@
+title: ARIA — AI-Readable Intent Architecture
+description: A formal specification language for AI-driven development
+url: https://aria-lang.github.io
+
+# Deployment note:
+# - This config assumes a user/org GitHub Pages site at aria-lang.github.io
+# - For a project-page deployment (e.g. user.github.io/aria), uncomment:
+#     baseurl: "/aria"
+#   and test locally with `bundle exec jekyll serve --baseurl /aria`
+
+# Jekyll settings
+markdown: kramdown
+highlighter: rouge
+kramdown:
+  syntax_highlighter: rouge
+  syntax_highlighter_opts:
+    block:
+      line_numbers: false
+
+# Do not process these files
+exclude:
+  - README.md

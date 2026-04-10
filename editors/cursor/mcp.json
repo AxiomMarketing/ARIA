@@ -1,0 +1,9 @@
+{
+  "mcpServers": {
+    "aria": {
+      "command": "npx",
+      "args": ["aria-mcp"],
+      "description": "ARIA formal specification compiler — check, generate, diagram, explain, and scaffold .aria specs"
+    }
+  }
+}

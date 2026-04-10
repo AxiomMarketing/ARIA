@@ -1,0 +1,60 @@
+# =============================================================================
+# ARIA — .gitignore
+# =============================================================================
+
+# ---------- Dependencies ----------
+node_modules/
+
+# ---------- Build output ----------
+dist/
+*.tsbuildinfo
+
+# ---------- Generated output (user runs `aria gen`) ----------
+generated/
+
+# ---------- Test coverage ----------
+coverage/
+.vitest/
+
+# ---------- IDE / OS ----------
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+*~
+
+# WebStorm / IntelliJ
+.idea/
+
+# VS Code (project-level settings — extension source is tracked)
+.vscode/
+
+# ---------- Claude Code (project-specific, not for public repo) ----------
+.claude/
+CLAUDE.md
+
+# ---------- Environment / Secrets ----------
+.env
+.env.*
+!.env.example
+
+# ---------- npm ----------
+*.tgz
+.npmrc
+
+# ---------- Temp / scratch dirs ----------
+# These may have been created during local dev/testing
+contracts/
+new-specs/
+specs/
+
+# ---------- VS Code extension build artifacts ----------
+editors/vscode/out/
+editors/vscode/server/out/
+editors/vscode/server/node_modules/
+editors/vscode/*.vsix
+editors/vscode/.vscode-test/
+
+# ---------- Logs ----------
+*.log
+npm-debug.log*

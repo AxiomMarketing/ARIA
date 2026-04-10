@@ -1,0 +1,243 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="ARIA — A formal specification language where humans write the WHAT and AI generates the HOW. Contracts, types, state machines. Compiles to TypeScript, Rust, Python, JSON Schema.">
+  <meta name="theme-color" content="#001f4d">
+  <title>ARIA — AI-Readable Intent Architecture</title>
+
+  <!-- OpenGraph -->
+  <meta property="og:type" content="website">
+  <meta property="og:site_name" content="ARIA">
+  <meta property="og:title" content="ARIA — AI-Readable Intent Architecture">
+  <meta property="og:description" content="Write contracts, types, and state machines. The compiler generates TypeScript, Rust, Python, JSON Schema, Mermaid diagrams, and tests. AI implements the code.">
+  <meta property="og:url" content="https://aria-lang.github.io">
+  <meta property="og:image" content="https://aria-lang.github.io/og-image.png">
+
+  <!-- Twitter Card -->
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="ARIA — AI-Readable Intent Architecture">
+  <meta name="twitter:description" content="A formal specification language for AI-driven development.">
+  <meta name="twitter:image" content="https://aria-lang.github.io/og-image.png">
+
+  <link rel="canonical" href="https://aria-lang.github.io">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='78' font-size='80' font-weight='700' fill='%23c75146'%3EA%3C/text%3E%3C/svg%3E">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+<header class="site-header">
+  <div class="container">
+    <a href="index.html" class="logo">ARIA<span>.</span></a>
+    <nav>
+      <a href="tutorial.html">Tutorial</a>
+      <a href="cli-reference.html">CLI</a>
+      <a href="reference.html">Language</a>
+      <a href="examples.html">Examples</a>
+      <a href="https://github.com/aria-lang/aria">GitHub</a>
+    </nav>
+  </div>
+</header>
+
+<main>
+  <section class="hero">
+    <div class="container">
+      <h1>Write the <span class="accent">intent</span>.<br>Let AI write the code.</h1>
+      <p class="tagline">
+        ARIA is a formal specification language designed for AI-driven development. You write
+        contracts, types, and state machines. The compiler produces TypeScript, Rust, Python,
+        JSON Schema, Mermaid diagrams, and tests. AI agents implement the code, guided by your specs.
+      </p>
+      <div class="cta">
+        <a class="btn btn-primary" href="tutorial.html">Get started →</a>
+        <a class="btn btn-secondary" href="https://github.com/aria-lang/aria">View on GitHub</a>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <div class="container">
+      <h2>A contract, end to end</h2>
+      <p class="lead">Every <code>.aria</code> contract declares inputs, preconditions, postconditions, failure cases, and examples. The compiler and AI handle the rest.</p>
+<pre><code>module Payment
+  version "1.0"
+  target typescript
+
+type Money is Integer
+  where self > 0
+  where self &lt;= 1_000_000
+
+type Account is Record
+  id: String
+  balance: Money
+  status: AccountStatus
+
+type AccountStatus is Enum
+  active
+  frozen
+
+contract TransferFunds
+  --- Transfer money between two accounts atomically
+
+  inputs
+    from: Account
+    to: Account
+    amount: Money
+
+  requires
+    from.status == active
+    to.status == active
+    from.balance &gt;= amount
+
+  ensures
+    from.balance == old(from.balance) - amount
+    to.balance == old(to.balance) + amount
+    result.success == true
+
+  on_failure
+    when from.balance &lt; amount
+      return InsufficientFunds with remaining: from.balance
+    when from.status != active
+      return AccountFrozen with account: from.id
+
+  examples
+    given
+      from: { id: "acc_a", balance: 10000, status: active }
+      to:   { id: "acc_b", balance: 5000, status: active }
+      amount: 3000
+    then
+      from.balance == 7000
+      to.balance == 8000</code></pre>
+    </div>
+  </section>
+
+  <section>
+    <div class="container">
+      <h2>Why ARIA</h2>
+      <div class="features">
+        <div class="feature">
+          <h3>Contracts are first-class</h3>
+          <p><code>requires</code> / <code>ensures</code> / <code>on_failure</code> built into the language. No bolt-on assertions, no hidden invariants.</p>
+        </div>
+        <div class="feature">
+          <h3>Examples are mandatory</h3>
+          <p>Every contract has <code>given</code>/<code>then</code> examples. The compiler turns them into automated tests your AI must pass.</p>
+        </div>
+        <div class="feature">
+          <h3>ASCII-only, no Unicode tricks</h3>
+          <p>AI tokenizes ASCII best. ARIA uses <code>implies</code>, <code>and</code>, <code>or</code>, <code>exists</code> — no mathematical symbols to mis-decode.</p>
+        </div>
+        <div class="feature">
+          <h3>State machines are native</h3>
+          <p><code>behavior</code> blocks describe lifecycles with <code>states</code>, <code>transitions</code>, <code>invariants</code>, and <code>forbidden</code>. Mermaid diagrams are generated for free.</p>
+        </div>
+        <div class="feature">
+          <h3>Multi-target output</h3>
+          <p>One <code>.aria</code> spec compiles to TypeScript + Zod, Rust + serde, Python + Pydantic, and JSON Schema. No ecosystem lock-in.</p>
+        </div>
+        <div class="feature">
+          <h3>Incremental specs</h3>
+          <p>Start with a stub, refine as you go. <code>aria check --draft</code> allows incomplete specs; <code>--strict</code> enforces completeness before release.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <div class="container">
+      <h2>The pipeline</h2>
+      <p class="lead">Specification, verification, generation, implementation, validation — one flow.</p>
+      <div class="pipeline">
+        <div class="step">
+          <div class="num">1</div>
+          <h4>Write</h4>
+          <p>Author <code>.aria</code> specs. Humans express <em>intent</em>.</p>
+        </div>
+        <div class="step">
+          <div class="num">2</div>
+          <h4>Check</h4>
+          <p><code>aria check</code> catches type errors, unknown states, duplicates.</p>
+        </div>
+        <div class="step">
+          <div class="num">3</div>
+          <h4>Generate</h4>
+          <p><code>aria gen</code> produces types, schemas, stubs, tests.</p>
+        </div>
+        <div class="step">
+          <div class="num">4</div>
+          <h4>Implement</h4>
+          <p><code>aria implement --ai claude</code> fills the stubs via AI.</p>
+        </div>
+        <div class="step">
+          <div class="num">5</div>
+          <h4>Validate</h4>
+          <p>Auto-generated tests verify the AI respected the contract.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <div class="container">
+      <h2>Install</h2>
+      <div class="install">
+<pre><code># Install via npm
+npm install -g aria-lang
+
+# Or run without installing
+npx aria-lang check my-spec.aria
+
+# Check a spec
+aria check examples/payment.aria
+
+# Generate TypeScript + Zod
+aria gen examples/payment.aria --target typescript -o src/
+
+# Generate a Mermaid state diagram
+aria diagram examples/order.aria -o docs/order.md
+
+# Let Claude implement the contracts
+ANTHROPIC_API_KEY=sk-... aria implement examples/payment.aria --ai claude -o src/</code></pre>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <div class="container">
+      <h2>Learn more</h2>
+      <div class="features">
+        <div class="feature">
+          <h3><a href="tutorial.html">Tutorial</a></h3>
+          <p>Build your first spec in under 10 minutes. Check, generate, implement, test.</p>
+        </div>
+        <div class="feature">
+          <h3><a href="cli-reference.html">CLI Reference</a></h3>
+          <p>Every command, every flag, every exit code.</p>
+        </div>
+        <div class="feature">
+          <h3><a href="reference.html">Language Reference</a></h3>
+          <p>Types, contracts, behaviors, generics, effects, examples — the full grammar.</p>
+        </div>
+        <div class="feature">
+          <h3><a href="examples.html">Examples Gallery</a></h3>
+          <p>Authentication, payments, e-commerce orders — real-world specs you can copy.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+</main>
+
+<footer class="site-footer">
+  <div class="container">
+    <div>ARIA is MIT-licensed. Built for the AI-driven development era.</div>
+    <div>
+      <a href="https://github.com/aria-lang/aria">GitHub</a> ·
+      <a href="https://www.npmjs.com/package/aria-lang">npm</a> ·
+      <a href="https://github.com/aria-lang/aria/blob/main/CHANGELOG.md">Changelog</a>
+    </div>
+  </div>
+</footer>
+
+</body>
+</html>

@@ -1,0 +1,107 @@
+{
+  "Module": {
+    "prefix": "module",
+    "body": [
+      "module ${1:ModuleName}",
+      "  version \"1.0\"",
+      "  target typescript",
+      "",
+      "$0"
+    ],
+    "description": "ARIA module header"
+  },
+  "Type Integer with constraints": {
+    "prefix": "type-int",
+    "body": [
+      "type ${1:TypeName} is Integer",
+      "  where self > ${2:0}",
+      "  where self <= ${3:1_000_000}"
+    ],
+    "description": "Integer type with where clauses"
+  },
+  "Type String with constraints": {
+    "prefix": "type-str",
+    "body": [
+      "type ${1:TypeName} is String",
+      "  where length(self) <= ${2:255}"
+    ],
+    "description": "String type with length constraint"
+  },
+  "Record type": {
+    "prefix": "record",
+    "body": [
+      "type ${1:TypeName} is Record",
+      "  ${2:field}: ${3:Type}",
+      "  $0"
+    ],
+    "description": "Record type with fields"
+  },
+  "Enum type": {
+    "prefix": "enum",
+    "body": [
+      "type ${1:TypeName} is Enum",
+      "  ${2:variant1}",
+      "  ${3:variant2}",
+      "  $0"
+    ],
+    "description": "Enum type with variants"
+  },
+  "Contract": {
+    "prefix": "contract",
+    "body": [
+      "contract ${1:ContractName}",
+      "  --- ${2:Description}",
+      "  inputs",
+      "    ${3:param}: ${4:Type}",
+      "  requires",
+      "    ${5:precondition}",
+      "  ensures",
+      "    ${6:postcondition}",
+      "  on_failure",
+      "    when ${7:error_condition}",
+      "      return ${8:ErrorType}",
+      "  examples",
+      "    given",
+      "      ${3}: ${9:value}",
+      "    then",
+      "      ${10:result.success == true}"
+    ],
+    "description": "Full contract with all sections"
+  },
+  "Behavior state machine": {
+    "prefix": "behavior",
+    "body": [
+      "behavior ${1:BehaviorName}",
+      "  --- ${2:Description}",
+      "  states",
+      "    ${3:state1}",
+      "    ${4:state2}",
+      "  initial ${3:state1}",
+      "  transitions",
+      "    ${3:state1} -> ${4:state2}",
+      "      when ${5:condition}",
+      "  forbidden",
+      "    ${4:state2} -> ${3:state1}"
+    ],
+    "description": "Behavior state machine"
+  },
+  "Example": {
+    "prefix": "example",
+    "body": [
+      "given",
+      "  ${1:param}: ${2:value}",
+      "then",
+      "  ${3:result.success == true}"
+    ],
+    "description": "Given/then example"
+  },
+  "On failure": {
+    "prefix": "onfail",
+    "body": [
+      "on_failure",
+      "  when ${1:condition}",
+      "    return ${2:ErrorType} with ${3:field}: ${4:value}"
+    ],
+    "description": "on_failure case"
+  }
+}

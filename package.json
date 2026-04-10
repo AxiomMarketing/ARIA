@@ -1,0 +1,78 @@
+{
+  "name": "aria-lang",
+  "version": "0.1.0",
+  "description": "ARIA — AI-Readable Intent Architecture. A formal specification language for AI-driven development.",
+  "type": "module",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "bin": {
+    "aria": "dist/cli.js",
+    "aria-mcp": "dist/mcp.js"
+  },
+  "files": [
+    "dist",
+    "examples/*.aria",
+    "LANGUAGE.md",
+    "README.md",
+    "LICENSE",
+    "CHANGELOG.md"
+  ],
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "test": "vitest",
+    "test:run": "vitest run",
+    "typecheck": "tsc --noEmit",
+    "aria": "tsx src/cli.ts",
+    "prepublishOnly": "npm run typecheck && npm run test:run && npm run build"
+  },
+  "keywords": [
+    "aria",
+    "aria-lang",
+    "specification",
+    "formal-methods",
+    "ai",
+    "ai-readable",
+    "code-generation",
+    "contracts",
+    "design-by-contract",
+    "dsl",
+    "zod",
+    "mermaid",
+    "typescript",
+    "rust",
+    "python"
+  ],
+  "author": {
+    "name": "Jonathan Dewaele"
+  },
+  "license": "MIT",
+  "homepage": "https://github.com/aria-lang/aria#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/aria-lang/aria.git"
+  },
+  "bugs": {
+    "url": "https://github.com/aria-lang/aria/issues"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "tsx": "^4.19.0",
+    "typescript": "^5.7.0",
+    "vitest": "^3.0.0"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.87.0",
+    "@modelcontextprotocol/sdk": "^1.29.0",
+    "commander": "^13.0.0"
+  }
+}

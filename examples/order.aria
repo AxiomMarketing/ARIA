@@ -1,0 +1,427 @@
+module OrderProcessing
+  version "1.0"
+  target typescript, rust
+  author "Jonathan Dewaele"
+
+--- ============================================================================
+--- TYPES
+--- ============================================================================
+
+type OrderId is String
+  where length(self) == 26
+  where self starts_with "ord_"
+
+type ProductId is String
+  where length(self) >= 1
+  where length(self) <= 255
+
+type Money is Integer
+  where self >= 0
+  where self <= 10_000_000
+  unit "cents"
+
+type Quantity is Integer
+  where self > 0
+  where self <= 1000
+
+type OrderItem is Record
+  product_id: ProductId
+  quantity: Quantity
+  unit_price: Money
+  total: Money
+
+type Cart is Record
+  items: List of OrderItem
+  total: Money
+  item_count: Integer
+
+type Country is String
+  where length(self) == 2
+  where self matches /^[A-Z]{2}$/
+
+type ShippingAddress is Record
+  street: String
+  city: String
+  postal_code: String
+  country: Country
+  recipient_name: String
+
+type OrderStatus is Enum
+  draft          --- Items added but not confirmed
+  confirmed      --- Customer confirmed purchase
+  validated      --- Cart and address validated
+  paid           --- Payment received
+  processing     --- Being prepared for shipment
+  shipped        --- Sent to customer
+  delivered      --- Received by customer
+  cancelled      --- Cancelled before shipment
+  refunded       --- Fully refunded
+  partially_refunded  --- Partially refunded
+
+type ShippingMethod is Enum
+  standard       --- Standard shipping (5-7 days)
+  express        --- Express shipping (2-3 days)
+  overnight      --- Overnight shipping
+
+type Order is Record
+  id: OrderId
+  items: List of OrderItem
+  status: OrderStatus
+  subtotal: Money
+  shipping_cost: Money
+  tax: Money
+  total: Money
+  shipping_address: ShippingAddress
+  shipping_method: ShippingMethod
+  created_at: DateTime
+  confirmed_at: DateTime
+  shipped_at: DateTime
+  delivered_at: DateTime
+  tracking_number: String
+
+type PaymentMethod is Enum
+  card
+  bank_transfer
+  wallet
+
+--- ============================================================================
+--- CONTRACTS
+--- ============================================================================
+
+contract ValidateCart
+  --- Validates cart contents, quantities, and prices
+
+  inputs
+    cart: Cart
+
+  requires
+    cart.items length > 0
+    cart.items length <= 100
+    cart.total >= 0
+
+  ensures
+    result.valid == true implies all cart.items have unit_price > 0
+    result.valid == true implies all cart.items have quantity > 0
+
+  on_failure
+    when cart is empty
+      return EmptyCart
+    when item quantity invalid
+      return InvalidQuantity with product_id: item.product_id
+
+  examples
+    --- Valid cart
+    given cart: {
+      items: [
+        { product_id: "prod_001", quantity: 2, unit_price: 5000, total: 10000 },
+        { product_id: "prod_002", quantity: 1, unit_price: 3000, total: 3000 }
+      ],
+      total: 13000,
+      item_count: 2
+    }
+    then
+      result.valid == true
+      result.item_count == 2
+
+    --- Invalid cart - empty items
+    given cart: {
+      items: [],
+      total: 0,
+      item_count: 0
+    }
+    then
+      result.valid == false
+      result == EmptyCart
+
+contract CalculateTotal
+  --- Calculates order total with tax and shipping
+
+  inputs
+    cart: Cart
+    shipping_address: ShippingAddress
+    shipping_method: ShippingMethod
+
+  requires
+    cart.items length > 0
+    cart.total > 0
+    shipping_address.country exists
+
+  ensures
+    result.subtotal == sum(cart.items[*].total)
+    result.shipping_cost > 0
+    result.tax >= 0
+    result.total == result.subtotal + result.shipping_cost + result.tax
+
+  on_failure
+    when invalid shipping address
+      return InvalidAddress with country: shipping_address.country
+    when shipping cost unavailable
+      return ShippingUnavailable with method: shipping_method
+
+  examples
+    --- Calculate total for France with express shipping
+    given
+      cart: {
+        items: [
+          { product_id: "prod_001", quantity: 1, unit_price: 5000, total: 5000 }
+        ],
+        total: 5000,
+        item_count: 1
+      }
+      shipping_address: {
+        street: "123 Rue de Paris",
+        city: "Paris",
+        postal_code: "75001",
+        country: "FR",
+        recipient_name: "John Doe"
+      }
+      shipping_method: "express"
+    then
+      result.subtotal == 5000
+      result.shipping_cost == 1500
+      result.tax == 1254
+      result.total == 7754
+
+contract CreateOrder
+  --- Creates order from validated cart and payment confirmation
+
+  inputs
+    cart: Cart
+    shipping_address: ShippingAddress
+    shipping_method: ShippingMethod
+    payment_result: Record
+    total: Money
+
+  requires
+    cart.items length > 0
+    payment_result.success == true
+    total > 0
+
+  ensures
+    result.order.id starts_with "ord_"
+    result.order.status == "confirmed"
+    result.order.total == total
+    result.order.items length == cart.items length
+    result.order.created_at exists
+
+  on_failure
+    when order creation failed
+      return OrderCreationFailed with reason: "database_error"
+
+  examples
+    --- Create order after successful payment
+    given
+      cart: {
+        items: [
+          { product_id: "prod_001", quantity: 2, unit_price: 5000, total: 10000 }
+        ],
+        total: 10000,
+        item_count: 1
+      }
+      shipping_address: {
+        street: "456 Via Roma",
+        city: "Rome",
+        postal_code: "00100",
+        country: "IT",
+        recipient_name: "Maria Rossi"
+      }
+      shipping_method: "standard"
+      payment_result: { success: true, transaction_id: "txn_abc123" }
+      total: 12000
+    then
+      result.order.id starts_with "ord_"
+      result.order.status == "confirmed"
+      result.order.total == 12000
+
+contract SendConfirmation
+  --- Sends order confirmation email to customer
+
+  inputs
+    order: Order
+    customer_email: Email
+
+  effects
+    sends Email to customer_email
+    writes AuditLog with action: "order_confirmed", order_id: order.id
+
+  requires
+    order.id exists
+    customer_email is valid Email
+
+  ensures
+    result.sent == true
+    result.message_id exists
+
+  examples
+    --- Send confirmation
+    given
+      order: {
+        id: "ord_abc123def456789012345678",
+        total: 12000,
+        status: "confirmed",
+        items: [{ product_id: "prod_001", quantity: 2, unit_price: 5000 }]
+      }
+      customer_email: "customer@example.com"
+    then
+      result.sent == true
+      result.message_id exists
+
+contract ProcessCheckout
+  --- Orchestrates complete checkout flow with compensation
+
+  inputs
+    cart: Cart
+    shipping_address: ShippingAddress
+    shipping_method: ShippingMethod
+    payment_method: PaymentMethod
+    customer_email: Email
+
+  steps
+    1. ValidateCart with cart
+       then validated_cart
+
+    2. CalculateTotal with validated_cart, shipping_address, shipping_method
+       then total_result
+
+    3. ChargePayment with total_result.total, payment_method
+       then payment_result
+
+    4. CreateOrder with validated_cart, shipping_address, shipping_method, payment_result, total_result.total
+       then order
+
+    5. SendConfirmation with order, customer_email
+       then confirmation
+
+  requires
+    cart.items length > 0
+    shipping_address.country exists
+    customer_email is valid Email
+
+  ensures
+    order.status == "confirmed"
+    confirmation.sent == true
+    order.total == total_result.total
+
+  compensate
+    on step 4 failure after step 3 success
+      RefundPayment with transaction_id: payment_result.transaction_id, amount: total_result.total, reason: "order_creation_failed"
+
+    on step 5 failure after step 4 success
+      RefundPayment with transaction_id: payment_result.transaction_id, amount: total_result.total, reason: "confirmation_delivery_failed"
+
+--- ============================================================================
+--- BEHAVIORS
+--- ============================================================================
+
+behavior OrderLifecycle
+  --- Complete lifecycle of an order from draft to final state
+
+  states
+    draft           --- Items in cart, not confirmed
+    confirmed       --- Customer confirmed, awaiting payment
+    validated       --- Cart validated, ready for payment
+    paid            --- Payment received
+    processing      --- Order being prepared
+    shipped         --- Sent to customer
+    delivered       --- Received by customer
+    cancelled       --- Cancelled before shipment
+    refunded        --- Fully refunded after delivery
+    partially_refunded  --- Partially refunded
+
+  initial draft
+
+  transitions
+    draft -> confirmed
+      when items length > 0
+      when customer.email is valid Email
+      ensures order.confirmation_number exists
+      ensures order.confirmed_at exists
+
+    confirmed -> validated
+      when shipping_address valid
+      when total calculated
+      ensures order.total > 0
+
+    validated -> paid
+      when payment.status == "completed"
+      ensures order.paid_at exists
+      ensures order.payment_id exists
+
+    paid -> processing
+      when fulfillment started
+      ensures order.processing_started_at exists
+
+    processing -> shipped
+      when fulfillment completed
+      when tracking_number exists
+      ensures order.shipped_at exists
+      ensures order.tracking_number exists
+
+    shipped -> delivered
+      when delivery confirmed
+      ensures order.delivered_at exists
+
+    confirmed -> cancelled
+      when cancellation requested
+      when payment not received
+      ensures order.cancelled_at exists
+      ensures refund not triggered
+
+    paid -> cancelled
+      when cancellation requested
+      when items not shipped
+      ensures order.cancelled_at exists
+      ensures refund triggered
+
+    paid -> refunded
+      when refund approved
+      when refund amount == order.total
+      ensures order.refunded_at exists
+      ensures customer balance increased
+
+    shipped -> refunded
+      when refund approved
+      when return received
+      ensures order.refunded_at exists
+      ensures customer balance increased
+
+    delivered -> partially_refunded
+      when refund approved
+      when refund amount < order.total
+      ensures order.refund_amount == refund.amount
+
+  invariants
+    order.total >= 0
+    order.items length >= 0
+    once paid implies paid_at exists
+    once shipped implies tracking_number exists
+    once delivered implies delivered_at exists
+    confirmed_at <= paid_at
+    paid_at <= shipped_at
+    shipped_at <= delivered_at
+
+  forbidden
+    delivered -> draft           --- Cannot return to cart
+    cancelled -> paid            --- Cannot pay cancelled order
+    refunded -> shipped          --- Cannot ship refunded order
+    delivered -> cancelled       --- Cannot cancel after delivery
+    partially_refunded -> draft  --- Cannot restart after partial refund
+
+  examples
+    flow "happy path - complete purchase"
+      draft -> confirmed -> validated -> paid -> processing -> shipped -> delivered
+
+    flow "cancel before payment"
+      draft -> confirmed -> validated -> cancelled
+
+    flow "cancel after payment before shipping"
+      draft -> confirmed -> validated -> paid -> cancelled
+
+    flow "full refund after delivery"
+      draft -> confirmed -> validated -> paid -> processing -> shipped -> delivered -> refunded
+
+    flow "partial refund after delivery"
+      draft -> confirmed -> validated -> paid -> processing -> shipped -> delivered -> partially_refunded
+
+    flow "return for exchange"
+      draft -> confirmed -> validated -> paid -> processing -> shipped -> delivered -> partially_refunded -> confirmed -> validated -> paid -> shipped -> delivered
