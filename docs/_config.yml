@@ -1,12 +1,12 @@
 title: ARIA — AI-Readable Intent Architecture
 description: A formal specification language for AI-driven development
-url: https://aria-lang.github.io
+url: https://axiommarketing.github.io
+baseurl: /ARIA
 
-# Deployment note:
-# - This config assumes a user/org GitHub Pages site at aria-lang.github.io
-# - For a project-page deployment (e.g. user.github.io/aria), uncomment:
-#     baseurl: "/aria"
-#   and test locally with `bundle exec jekyll serve --baseurl /aria`
+# Project page deployment:
+# - URL: https://axiommarketing.github.io/ARIA/
+# - All Liquid links use {{ '/path' | relative_url }} which prepends baseurl
+# - Pure HTML files use relative paths (no baseurl injection)
 
 # Jekyll settings
 markdown: kramdown
