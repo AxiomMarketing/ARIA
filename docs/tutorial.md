@@ -353,7 +353,7 @@ In 6 commands, you:
 
 The `/aria` skill (installed via `/plugin install aria@aria-lang`) is your daily driver in Claude Code. It auto-detects what you want and runs the right workflow.
 
-### Forward workflow — "build me a feature"
+### Forward workflow — "build me one feature"
 
 ```
 /aria a JWT auth middleware that validates tokens, refreshes expired ones,
@@ -361,6 +361,26 @@ and returns 401 on missing or invalid tokens
 ```
 
 Claude walks through parse → spec → review → gen → implement → test, pausing at the review stage for you to approve.
+
+Use this when you want **one focused contract or one small module**.
+
+### Project workflow — "build me a whole project"
+
+```
+/aria I'm building an art marketplace where artists upload art, customers buy
+prints, payments are split 70/30 with a minimum 100-cent platform fee, and
+orders are fulfilled by Printful
+```
+
+Claude walks through:
+
+1. **Discover** — interview round (1-2 quick questions about users and scope)
+2. **Decompose** — splits the project into 3-7 modules with dependency order (auth → products → orders → payments → commission → fulfillment)
+3. **Generate all** — creates one `.aria` spec per module, validates each
+4. **Iterate** — review loop where you refine specific specs, add modules, remove modules (max 5 rounds)
+5. **Implement** (optional) — runs `aria gen` + `aria implement` on every spec
+
+Use this when you have a **project-level idea** and want to formalize multiple domains at once. The skill handles boundary analysis, dependency ordering, and cross-module imports.
 
 ### Reverse workflow — "import my existing code"
 

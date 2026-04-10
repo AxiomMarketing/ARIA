@@ -240,16 +240,48 @@ When you type `/aria <something>`, the skill goes through these phases:
 
 The skill is **stateful across steps** but **stateless across invocations** — every `/aria` call starts from scratch and re-detects the project state.
 
-### The 4 workflows
+### The 5 workflows
 
 | Command | Workflow | Trigger | Steps |
 |---|---|---|---|
-| `/aria <feature description>` | **forward** | New feature from natural language | parse → spec → review → gen → implement → test |
+| `/aria <feature description>` | **forward** | New single feature | parse → spec → review → gen → implement → test |
+| `/aria <whole project description>` | **project** | Bootstrap a whole app from a high-level description | discover → decompose → generate-all → iterate → implement |
 | `/aria reverse src/` | **reverse** | Existing TypeScript codebase | scan → import → enrich → drift |
 | `/aria audit` | **maintain** | Existing ARIA project | check → drift → propose fixes |
 | `/aria install` | **setup** | First-time install in a project | install → configure → scaffold |
 
-The router detects intent automatically — you can also be explicit by saying `/aria forward ...`, `/aria reverse src/`, `/aria audit`, etc.
+The router detects intent automatically — you can also be explicit: `/aria forward ...`, `/aria project ...`, `/aria reverse src/`, `/aria audit`.
+
+**forward vs project — when to use which:**
+
+- **forward**: "build me a JWT auth middleware" → 1 contract or 1 module
+- **project**: "I'm building a marketplace where artists upload art, customers buy, payments are split, fulfillment via Printful" → 4-6 modules covering auth, products, payments, orders, fulfillment. Includes an interview round and an iterate-refine loop.
+
+### Example 0 — Bootstrap a whole project from a description (project)
+
+You have an idea but no code yet. You type:
+
+```
+/aria I'm building an art marketplace where artists upload art, customers buy
+prints, payments are split 70/30 with a minimum 100-cent platform fee, and
+orders are fulfilled by Printful
+```
+
+The skill walks through:
+
+1. **Discover** — extracts the project name (`ArtMarketplace`), asks 1-2 clarifying questions about user types and scope
+2. **Decompose** — splits the project into modules with dependency order:
+   - `auth` (foundational)
+   - `products` (depends on auth)
+   - `orders` (depends on products + auth)
+   - `payments` (depends on orders)
+   - `commission` (depends on payments + auth)
+   - `fulfillment` (depends on orders)
+3. **Generate all** — creates 6 `.aria` specs in `specs/`, validates each one, reports progress per module
+4. **Iterate** — shows you a summary of every spec, lets you refine specific ones, add missing modules, or remove unused ones (max 5 refinement rounds)
+5. **Implement** (optional) — runs `aria gen` + `aria implement` on every spec, generating types + tests + AI implementations for the whole project
+
+End result : a fully formalized project structure with 6 modules covering ~20 contracts, ready for AI implementation. Versus `forward`, this workflow handles **multi-domain projects** where you need to think about boundaries upfront.
 
 ### Example 1 — Build a new feature from scratch (forward)
 

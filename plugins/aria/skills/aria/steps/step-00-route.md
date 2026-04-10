@@ -41,7 +41,7 @@ The user said `/aria <something>`. Extract:
 
 - `{user_input}` — the raw description after `/aria`
 - `{auto_mode}` — true if input contains `-a`, `--auto`, `auto`
-- Explicit workflow keyword (if any): `forward`, `reverse`, `import`, `audit`, `check`, `drift`, `setup`, `install`
+- Explicit workflow keyword (if any): `forward`, `feature`, `project`, `reverse`, `import`, `audit`, `check`, `drift`, `setup`, `install`
 
 ### 2. Detect project context
 
@@ -80,9 +80,28 @@ Use this decision matrix:
 | `import`, `reverse` | Has source code AND specs/ | Ask: replace existing? → **reverse** |
 | `audit`, `check`, `drift`, `validate`, `lint specs` | `has_specs_dir = true` | → **maintain** |
 | `audit`, `check` | `has_specs_dir = false` | → **setup** (with audit follow-up) |
-| Any natural language description (default) | `has_aria_lang = true` | → **forward** |
-| Any natural language description | `has_aria_lang = false` | → **setup** (then forward) |
+| `project`, `whole app`, `entire system`, `bootstrap project`, `decompose this idea` | Any | → **project** |
+| Multi-domain description (mentions 3+ distinct features/areas) | Any | → **project** |
+| Single feature description (one operation) | `has_aria_lang = true` | → **forward** |
+| Single feature description | `has_aria_lang = false` | → **setup** (then forward) |
 | Empty input | Any | → ask user via AskUserQuestion |
+
+### 3a. Heuristic for "single feature" vs "project"
+
+When the user gives a free-form description without an explicit keyword, count:
+- **Distinct domains/nouns**: auth, payment, products, orders, users, etc.
+- **Distinct operations/verbs**: login, charge, refund, calculate, etc.
+- **Sentence length**: > 200 chars often indicates project scope
+- **Connecting words**: "and ... and ...", "with ... where ... and", "I'm building"
+
+Decision rules:
+- 1 domain + 1-2 operations → **forward** (single feature)
+- 2+ domains OR 3+ operations OR > 200 chars → **project** (multi-module)
+- Sentence starts with "I'm building", "I want to make a", "my app does", "we're working on" → almost always **project**
+- Explicit `project` keyword → always **project**
+- Explicit `forward` or `feature` keyword → always **forward**
+
+When unclear, ask the user (see step 4).
 
 ### 4. Confirm with user (if auto_mode=false and intent is ambiguous)
 
@@ -98,9 +117,11 @@ questions:
     question: "Which ARIA workflow do you want to run?"
     options:
       - label: "Build a new feature (forward)"
-        description: "Generate a spec from natural language, then generate code, types, and tests"
+        description: "One spec, one module, one contract or two — fastest path"
+      - label: "Bootstrap a whole project (project)"
+        description: "Multiple specs covering multiple domains — interview + iterate"
       - label: "Import existing code (reverse)"
-        description: "Reverse-engineer your TypeScript files into .aria spec skeletons"
+        description: "Reverse-engineer TypeScript files into .aria spec skeletons"
       - label: "Audit existing specs (maintain)"
         description: "Validate all specs, detect drift between specs and implementation"
       - label: "First-time setup"
@@ -110,13 +131,14 @@ questions:
 
 ### 5. Set state and load workflow
 
-Set `{workflow}` to one of: `forward`, `reverse`, `maintain`, `setup`.
+Set `{workflow}` to one of: `forward`, `project`, `reverse`, `maintain`, `setup`.
 
 Then load exactly ONE file:
 
 | `{workflow}` | Load |
 |---|---|
 | `forward` | `steps/step-fw-01-parse.md` |
+| `project` | `steps/step-pj-01-discover.md` |
 | `reverse` | `steps/step-rv-01-scan.md` |
 | `maintain` | `steps/step-mt-01-check.md` |
 | `setup` | `steps/step-su-01-install.md` |

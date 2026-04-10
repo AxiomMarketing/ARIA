@@ -1,26 +1,27 @@
 ---
 name: aria
-description: Complete ARIA workflow orchestrator. Routes to one of 4 sub-workflows (forward / reverse / maintain / setup) depending on the user's intent. Use whenever the user says `/aria <anything>`, mentions formal specs, contracts, ARIA, or wants to integrate ARIA into a project.
-argument-hint: "[forward|reverse|maintain|setup] <description>"
+description: Complete ARIA workflow orchestrator. Routes to one of 5 sub-workflows (forward / project / reverse / maintain / setup) depending on the user's intent. Use whenever the user says `/aria <anything>`, mentions formal specs, contracts, ARIA, or wants to integrate ARIA into a project.
+argument-hint: "[forward|project|reverse|maintain|setup] <description>"
 ---
 
 # ARIA Skill — Complete Orchestrator
 
 <objective>
-Provide a single entry point for every ARIA capability: build new features from natural language (forward), reverse-engineer existing TypeScript code into specs (reverse), maintain existing ARIA projects (maintain), and bootstrap ARIA into a fresh project (setup). Routes to the appropriate sub-workflow based on intent.
+Provide a single entry point for every ARIA capability: build a single feature from natural language (forward), bootstrap a whole project from a high-level description (project), reverse-engineer existing TypeScript code into specs (reverse), maintain existing ARIA projects (maintain), and install ARIA in a fresh project (setup). Routes to the appropriate sub-workflow based on intent.
 </objective>
 
 ## When to Use
 
 Trigger this skill whenever the user:
 - Says `/aria <anything>`
-- Describes a feature they want to build (forward)
+- Describes a single feature they want to build (forward)
+- Describes a whole project, app, or product idea (project)
 - Asks to "import existing code into ARIA" or "reverse-engineer specs" (reverse)
 - Asks to "audit specs", "find drift", "check ARIA project" (maintain)
 - Says "install ARIA in this project", "set up ARIA", "first time with ARIA" (setup)
 - Mentions formal contracts, types + validation + tests, spec-first dev
 
-## The 4 Workflows
+## The 5 Workflows
 
 ```
                        /aria <command>
@@ -30,18 +31,25 @@ Trigger this skill whenever the user:
                   │  (intent detection)   │
                   └───────────┬───────────┘
                               |
-        ┌────────────┬────────┼────────┬────────────┐
-        ▼            ▼        ▼        ▼            ▼
-    FORWARD      REVERSE  MAINTAIN   SETUP    (mcp/publish)
-   "build new"  "import"  "audit"  "install"
+    ┌──────────┬──────────┬───┴─────┬──────────┬──────────┐
+    ▼          ▼          ▼         ▼          ▼          ▼
+ FORWARD    PROJECT    REVERSE   MAINTAIN    SETUP    (mcp config)
+"feature"  "describe   "import"  "audit"    "install"
+            project"
 ```
 
 | Workflow | When to use | Steps | Outputs |
 |----------|-------------|-------|---------|
-| **forward** (default) | New feature from natural language | fw-01 → fw-06 | `.aria` spec + generated code + tests + AI implementation |
+| **forward** (default) | One feature from natural language | fw-01 → fw-06 | 1 `.aria` spec + generated code + tests + AI implementation |
+| **project** | Whole project from a high-level description | pj-01 → pj-05 | Multiple `.aria` files organized by domain + iterate loop |
 | **reverse** | Existing TS codebase | rv-01 → rv-04 | `specs/*.aria` skeletons + drift report |
 | **maintain** | Existing ARIA project | mt-01 → mt-03 | Validation report + drift fixes |
 | **setup** | First-time install | su-01 → su-03 | `package.json` + `CLAUDE.md` + example spec |
+
+**forward vs project** — when to use which:
+
+- **forward**: "build me a JWT auth middleware", "calculate commission", "validate emails" → 1 contract or 1 module
+- **project**: "I'm building a marketplace where artists upload art, customers buy prints, payments are split, and orders are fulfilled by Printful" → 4-6 modules covering auth, products, payments, orders, fulfillment
 
 ## Quick Reference
 
@@ -59,11 +67,11 @@ This skill orchestrates these ARIA CLI commands:
 
 | Command | Used by workflow |
 |---------|------------------|
-| `aria check` | forward, maintain, reverse, setup |
-| `aria gen` | forward, setup |
-| `aria diagram` | forward, maintain |
-| `aria test` | forward |
-| `aria implement --ai claude` | forward |
+| `aria check` | forward, project, maintain, reverse, setup |
+| `aria gen` | forward, project, setup |
+| `aria diagram` | forward, project, maintain |
+| `aria test` | forward, project |
+| `aria implement --ai claude` | forward, project (optional final step) |
 | `aria init` | forward, setup |
 | `aria fmt` | maintain |
 | `aria setup` | setup |
@@ -77,7 +85,7 @@ These are set by `step-00-route.md` and persist across all workflow steps:
 
 | Variable | Type | Description |
 |----------|------|-------------|
-| `{workflow}` | enum | One of: `forward`, `reverse`, `maintain`, `setup` |
+| `{workflow}` | enum | One of: `forward`, `project`, `reverse`, `maintain`, `setup` |
 | `{user_input}` | string | The original user description / args |
 | `{cwd}` | string | Current project directory |
 | `{has_aria_lang}` | boolean | True if `aria-lang` is in package.json |
@@ -92,6 +100,13 @@ Forward-specific:
 - `{description}` — natural language feature description
 - `{module_name}` — derived from description
 - `{spec_path}` — path to generated `.aria` file
+
+Project-specific:
+- `{project_description}` — high-level project description from the user
+- `{project_name}` — derived from description (e.g. "ArtMarketplace")
+- `{domains}` — array of detected domains (e.g. ["auth", "products", "payments", "orders"])
+- `{generated_specs}` — array of generated `.aria` file paths
+- `{iteration_count}` — how many refinement rounds the user has gone through
 
 Reverse-specific:
 - `{import_source}` — directory or file to import from
@@ -114,5 +129,5 @@ Maintain-specific:
 **FIRST ACTION:** Load `steps/step-00-route.md`
 
 <critical>
-Do NOT load any workflow-specific step (fw-, rv-, mt-, su-) until step-00-route has parsed the user input and set `{workflow}`. The router is the single source of truth for which sub-workflow to execute.
+Do NOT load any workflow-specific step (fw-, pj-, rv-, mt-, su-) until step-00-route has parsed the user input and set `{workflow}`. The router is the single source of truth for which sub-workflow to execute.
 </critical>
