@@ -20,6 +20,8 @@ import { runInit } from "./commands/init.js";
 import { runWatch } from "./commands/watch.js";
 import { runFormat, runFormatDir } from "./commands/fmt.js";
 import { runSetup } from "./commands/setup.js";
+import { runImport } from "./commands/import.js";
+import { runDrift, formatDriftReport } from "./commands/drift.js";
 import type { ProviderName } from "./providers/index.js";
 
 const program = new Command();
@@ -595,6 +597,81 @@ program
       }
     } catch (err: any) {
       console.error(`✗ ${err.message}`);
+      process.exit(1);
+    }
+  });
+
+// ============================================================================
+// aria import (Phase 10.1) — reverse-engineer TS to .aria
+// ============================================================================
+
+program
+  .command("import")
+  .description("Reverse-engineer a TypeScript file or directory into .aria spec skeletons")
+  .argument("<path>", "Path to a .ts file or directory")
+  .option("-o, --output <dir>", "Output directory for .aria files", "./specs")
+  .option("--recursive", "Scan directory recursively", true)
+  .option("--no-recursive", "Do not scan recursively")
+  .option("-t, --target <lang>", "Target language for emitted .aria", "typescript")
+  .option("--no-jsdoc", "Do not include JSDoc comments in output")
+  .action((path: string, opts: { output: string; recursive: boolean; target: string; jsdoc?: boolean }) => {
+    try {
+      const results = runImport(path, {
+        output: opts.output,
+        recursive: opts.recursive,
+        target: opts.target,
+        includeJsDoc: opts.jsdoc !== false,
+      });
+      console.log(`\u2713 Imported ${results.length} file(s) → ${opts.output}`);
+      for (const r of results) {
+        console.log(`  ${r.outputPath}`);
+        console.log(`    Module: ${r.moduleName}`);
+        console.log(`    ${r.typeCount} type(s), ${r.contractCount} contract(s), ${r.behaviorCount} behavior(s)`);
+      }
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
+      console.error(`\u2717 Import failed: ${msg}`);
+      process.exit(1);
+    }
+  });
+
+// ============================================================================
+// aria drift (Phase 10.2) — detect spec/impl divergence
+// ============================================================================
+
+program
+  .command("drift")
+  .description("Compare an .aria spec against its TypeScript implementation and report divergences")
+  .argument("<spec>", "Path to .aria spec file or directory")
+  .argument("<impl>", "Path to .ts implementation file or directory")
+  .option("-o, --output <file>", "Write report to file (default: stdout)")
+  .option("--json", "Emit JSON report instead of markdown")
+  .option("--fail-on <level>", "Exit code 1 if findings >= level (error|warning)")
+  .action((spec: string, impl: string, opts: { output?: string; json?: boolean; failOn?: "error" | "warning" }) => {
+    try {
+      const reports = runDrift(spec, impl, opts);
+      const output = opts.json
+        ? JSON.stringify(reports, null, 2)
+        : formatDriftReport(reports);
+
+      if (opts.output) {
+        const outPath = resolve(opts.output);
+        writeFileSync(outPath, output, "utf-8");
+        console.log(`\u2713 Drift report written to ${outPath}`);
+      } else {
+        console.log(output);
+      }
+
+      // Exit code logic
+      if (opts.failOn) {
+        const totalErrors = reports.reduce((acc, r) => acc + r.findings.filter((f) => f.severity === "error").length, 0);
+        const totalWarnings = reports.reduce((acc, r) => acc + r.findings.filter((f) => f.severity === "warning").length, 0);
+        if (opts.failOn === "error" && totalErrors > 0) process.exit(1);
+        if (opts.failOn === "warning" && (totalErrors > 0 || totalWarnings > 0)) process.exit(1);
+      }
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
+      console.error(`\u2717 Drift check failed: ${msg}`);
       process.exit(1);
     }
   });

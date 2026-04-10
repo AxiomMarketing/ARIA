@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **`aria import` command (Phase 10.1)** — Reverse-engineer existing TypeScript code into `.aria` spec skeletons. Extracts interfaces/types/enums as ARIA types, exported functions as contracts (with detected throws → on_failure), and `*State`/`*Status` enums as behavior state machines. Supports single file or recursive directory mode. Skips `node_modules`, hidden dirs, `.test.ts`, and `.d.ts`. New `typescript` production dependency.
+- **`aria drift` command (Phase 10.2)** — Compare an `.aria` spec with its TypeScript implementation and report incoherences: missing functions, signature mismatches, type drift, behavior state drift. Supports file/file or directory/directory mode. Outputs markdown or JSON. `--fail-on error|warning` for CI integration.
+- **`src/importer/`** — New module: `ts-parser.ts` (TypeScript Compiler API extraction) + `aria-emitter.ts` (structured AST → `.aria` source text).
+
 ## [0.1.3] - 2026-04-11
 
 ### Security
