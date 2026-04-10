@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Build your first ARIA spec in under 10 minutes — install, check, generate, implement.">
+  <title>Tutorial — ARIA</title>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='78' font-size='80' font-weight='700' fill='%23c75146'%3EA%3C/text%3E%3C/svg%3E">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+<header class="site-header">
+  <div class="container">
+    <a href="index.html" class="logo">ARIA<span>.</span></a>
+    <nav>
+      <a href="tutorial.html">Tutorial</a>
+      <a href="cli-reference.html">CLI</a>
+      <a href="reference.html">Language</a>
+      <a href="examples.html">Examples</a>
+      <a href="https://github.com/AxiomMarketing/ARIA">GitHub</a>
+    </nav>
+  </div>
+</header>
+
+<main class="container" style="max-width:820px; padding-top:2rem; padding-bottom:3rem;">
+
+<h1>Tutorial — Your First ARIA Spec</h1>
+
+<p>This tutorial takes you from zero to a working, AI-implemented contract in under 10 minutes.</p>
+
+<h2>1. Install</h2>
+<pre><code>npm install -g aria-lang
+
+# Verify
+aria --version
+# → 0.1.0
+
+# Or run without installing:
+npx aria-lang --version</code></pre>
+
+<h2>2. Write your first spec</h2>
+<p>Create a file <code>commission.aria</code>:</p>
+<pre><code>module Marketplace
+  version "1.0"
+  target typescript
+
+type Money is Integer
+  where self > 0
+  where self <= 10_000_000
+  unit "cents"
+
+type ArtistStatus is Enum
+  active
+  suspended
+
+type Artist is Record
+  id: String
+  status: ArtistStatus
+
+contract CalculateCommission
+  --- Splits a sale between the artist (70%) and the platform (30%).
+  --- Enforces a minimum 100-cent platform commission.
+
+  inputs
+    sale_amount: Money
+    artist: Artist
+
+  requires
+    sale_amount > 0
+    artist.status == active
+
+  ensures
+    result.artist_share + result.platform_share == sale_amount
+    result.platform_share >= 100
+    result.artist_share >= 0
+
+  examples
+    given
+      sale_amount: 1000
+      artist: { id: "art_001", status: active }
+    then
+      result.artist_share == 700
+      result.platform_share == 300
+
+    given
+      sale_amount: 200
+      artist: { id: "art_002", status: active }
+    then
+      result.artist_share == 100
+      result.platform_share == 100</code></pre>
+
+<h2>3. Validate the spec</h2>
+<pre><code>aria check commission.aria
+
+# ✓ commission.aria parsed successfully
+#   Module: Marketplace v1.0
+#   Targets: typescript
+#   3 type(s), 1 contract(s), 0 behavior(s)</code></pre>
+
+<h2>4. Generate code</h2>
+<pre><code>aria gen commission.aria --target typescript -o src/
+
+# Creates:
+#   src/marketplace.types.ts       — Zod schemas + TypeScript types
+#   src/marketplace.contracts.ts   — Contract stubs
+#   src/marketplace.test.ts        — Tests from examples</code></pre>
+
+<h2>5. Have Claude implement it</h2>
+<pre><code>export ANTHROPIC_API_KEY=sk-ant-...
+aria implement commission.aria --ai claude -o src/
+
+# Claude fills in the contract stubs guided by requires/ensures/examples</code></pre>
+
+<h2>Next steps</h2>
+<div class="features">
+  <div class="feature"><h3><a href="cli-reference.html">CLI Reference</a></h3><p>Every command and flag.</p></div>
+  <div class="feature"><h3><a href="reference.html">Language Reference</a></h3><p>Complete grammar.</p></div>
+  <div class="feature"><h3><a href="examples.html">Examples</a></h3><p>Real-world specs.</p></div>
+</div>
+
+</main>
+
+<footer class="site-footer">
+  <div class="container">
+    <div>ARIA is MIT-licensed.</div>
+    <div><a href="https://github.com/AxiomMarketing/ARIA">GitHub</a> · <a href="https://www.npmjs.com/package/aria-lang">npm</a></div>
+  </div>
+</footer>
+
+</body>
+</html>

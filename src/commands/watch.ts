@@ -1,7 +1,11 @@
-import { watch, statSync, readFileSync } from "node:fs";
-import { resolve } from "node:path";
+import { watch, statSync, readFileSync, writeFileSync, mkdirSync, existsSync } from "node:fs";
+import { resolve, join } from "node:path";
 import { parseFile } from "../parser.js";
 import { check, formatCheckResult } from "../checker.js";
+import { generateTypeScript } from "../generators/typescript.js";
+import { generateRust } from "../generators/rust.js";
+import { generatePython } from "../generators/python.js";
+import { generateJsonSchema } from "../generators/jsonschema.js";
 
 export interface WatchOptions {
   gen?: boolean;
@@ -24,7 +28,24 @@ function runOnce(filePath: string, opts: WatchOptions): void {
       return;
     }
     console.log(`  \u2713 ${module.name} - ${module.body.length} definitions`);
-    // TODO: run gen if opts.gen
+
+    if (opts.gen && opts.output) {
+      const outDir = resolve(opts.output);
+      if (!existsSync(outDir)) mkdirSync(outDir, { recursive: true });
+      const target = opts.target || "typescript";
+      let files: { path: string; content: string }[] = [];
+      if (target === "typescript") files = generateTypeScript(module);
+      else if (target === "rust") files = generateRust(module);
+      else if (target === "python") files = generatePython(module);
+      else if (target === "jsonschema" || target === "json-schema") {
+        const f = generateJsonSchema(module);
+        files = [f];
+      }
+      for (const f of files) {
+        writeFileSync(join(outDir, f.path), f.content, "utf-8");
+      }
+      console.log(`  \u2713 Generated ${files.length} file(s) → ${outDir}`);
+    }
   } catch (err: any) {
     console.error(`  \u2717 ${err.message}`);
   }

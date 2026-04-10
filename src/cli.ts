@@ -186,7 +186,24 @@ program
         }
       }
 
-      const result = check(module);
+      // Cross-file import resolution: parse imported files and check type existence
+      const resolveImport = (fromPath: string): Set<string> | null => {
+        try {
+          const importAbsPath = resolve(dirname(resolvedPath), fromPath);
+          if (!existsSync(importAbsPath)) return null;
+          const importSource = readFileSync(importAbsPath, "utf-8");
+          const importModule = parseFile(importSource);
+          return new Set(
+            importModule.body
+              .filter((n: { kind: string }) => n.kind === "type")
+              .map((n: any) => n.name)
+          );
+        } catch {
+          return null;
+        }
+      };
+
+      const result = check(module, { resolveImport });
       if (!result.ok) {
         if (opts.json) {
           console.log(JSON.stringify({ status: "error", errors: result.errors.map((e: any) => ({ message: e.message || String(e) })) }));

@@ -23,12 +23,21 @@ export interface CheckResult {
   ok: boolean;
 }
 
+export interface CheckOptions {
+  /**
+   * Optional function to resolve an import path and return the set of type
+   * names exported by that module. When provided, the checker validates that
+   * each imported type actually exists in the source file.
+   */
+  resolveImport?: (fromPath: string) => Set<string> | null;
+}
+
 const PRIMITIVE_TYPES = new Set([
   "Integer", "Decimal", "String", "Boolean", "DateTime",
   "Record", "Enum", "List",
 ]);
 
-export function check(module: AriaModule): CheckResult {
+export function check(module: AriaModule, options: CheckOptions = {}): CheckResult {
   const errors: CheckIssue[] = [];
   const warnings: CheckIssue[] = [];
 
@@ -40,10 +49,26 @@ export function check(module: AriaModule): CheckResult {
   const typeNames = new Set(types.map((t) => t.name));
   const contractNames = new Set(contracts.map((c) => c.name));
 
-  // Build imported types set
+  // Build imported types set + validate cross-file references
   const importedTypes = new Set<string>();
   if (module.imports) {
     for (const imp of module.imports) {
+      // Cross-file validation: if resolveImport is provided, check that each
+      // imported type name actually exists in the source module.
+      if (options.resolveImport) {
+        const exportedTypes = options.resolveImport(imp.from);
+        if (exportedTypes) {
+          for (const t of imp.types) {
+            if (!exportedTypes.has(t)) {
+              errors.push({
+                severity: "error",
+                message: `Import error: type "${t}" not found in "${imp.from}"`,
+                hint: `Exported types: ${[...exportedTypes].join(", ") || "(none)"}`,
+              });
+            }
+          }
+        }
+      }
       for (const t of imp.types) {
         importedTypes.add(t);
       }

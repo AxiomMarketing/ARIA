@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="ARIA language reference — types, contracts, behaviors, generics, temporal assertions.">
+  <title>Language Reference — ARIA</title>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='78' font-size='80' font-weight='700' fill='%23c75146'%3EA%3C/text%3E%3C/svg%3E">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+<header class="site-header">
+  <div class="container">
+    <a href="index.html" class="logo">ARIA<span>.</span></a>
+    <nav>
+      <a href="tutorial.html">Tutorial</a>
+      <a href="cli-reference.html">CLI</a>
+      <a href="reference.html">Language</a>
+      <a href="examples.html">Examples</a>
+      <a href="https://github.com/AxiomMarketing/ARIA">GitHub</a>
+    </nav>
+  </div>
+</header>
+
+<main class="container" style="max-width:820px; padding-top:2rem; padding-bottom:3rem;">
+
+<h1>Language Reference</h1>
+<p>This page is a concise index. Full grammar in <a href="https://github.com/AxiomMarketing/ARIA/blob/main/LANGUAGE.md">LANGUAGE.md</a>.</p>
+
+<section>
+<h2>Module header</h2>
+<pre><code>module PaymentProcessing
+  version "1.0"
+  target typescript, rust
+  author "Jane Doe"
+  supersedes "Payment" version "0.9"
+  import Money from "./shared.aria"</code></pre>
+</section>
+
+<section>
+<h2>Types</h2>
+<h3>Primitives</h3>
+<p><code>Integer</code>, <code>Decimal</code>, <code>String</code>, <code>Boolean</code>, <code>DateTime</code></p>
+
+<h3>Refinement</h3>
+<pre><code>type Money is Integer
+  where self > 0
+  where self &lt;= 10_000_000
+  unit "cents"
+
+type Email is String
+  where self matches /^[^@]+@[^@]+\.[^@]+$/</code></pre>
+
+<h3>Records</h3>
+<pre><code>type Account is Record
+  id: String
+  balance: Money</code></pre>
+
+<h3>Enums</h3>
+<pre><code>type Status is Enum
+  active    --- Operational
+  frozen    --- Locked</code></pre>
+
+<h3>Lists</h3>
+<pre><code>type Orders is List of Order</code></pre>
+
+<h3>Generics</h3>
+<pre><code>type Box of T is Record
+  value: T
+
+type Result of T, E is Enum
+  ok
+  err</code></pre>
+
+<h3>Computed fields</h3>
+<pre><code>type Order is Record
+  subtotal: Money
+  tax: Money
+  total: Money computed as subtotal + tax</code></pre>
+</section>
+
+<section>
+<h2>Contracts</h2>
+<pre><code>contract Transfer
+  --- Doc comment
+
+  inputs
+    from: Account
+    amount: Money
+
+  requires
+    from.balance &gt;= amount
+
+  ensures
+    from.balance == old(from.balance) - amount
+
+  on_failure
+    when from.balance &lt; amount
+      return InsufficientFunds with remaining: from.balance
+
+  examples
+    given
+      from: { balance: 10000 }
+      amount: 3000
+    then
+      from.balance == 7000</code></pre>
+
+<h3>Additional sections</h3>
+<ul>
+  <li><code>effects</code> — <code>sends</code>, <code>writes</code>, <code>creates</code>, <code>reads</code>, <code>deletes</code></li>
+  <li><code>depends_on</code> — external service declarations</li>
+  <li><code>timeout 30 seconds</code> + <code>retry</code> with <code>backoff exponential</code></li>
+  <li><code>rate_limit</code> — <code>max 5 per minute per ip</code></li>
+  <li><code>steps</code> + <code>compensate</code> — saga orchestration</li>
+  <li><code>dispatch on method</code> — polymorphic routing to sub-contracts</li>
+  <li><code>deprecated "reason"</code> — marks contract for removal</li>
+</ul>
+</section>
+
+<section>
+<h2>Behaviors (state machines)</h2>
+<pre><code>behavior OrderLifecycle
+  states
+    draft
+    confirmed
+    paid
+
+  initial draft
+
+  transitions
+    draft -&gt; confirmed
+      when items.length &gt; 0
+
+  invariants
+    always balance &gt;= 0
+    eventually delivered_at exists
+    leads_to created -&gt; paid within 24 hours
+
+  forbidden
+    confirmed -&gt; draft
+
+  examples
+    flow "happy path"
+      draft -&gt; confirmed -&gt; paid</code></pre>
+</section>
+
+<section>
+<h2>Temporal assertions</h2>
+<table>
+  <tr><td><code>once X implies Y</code></td><td>From first time X holds, Y must hold</td></tr>
+  <tr><td><code>always X</code></td><td>X must be true in every state</td></tr>
+  <tr><td><code>never X</code></td><td>X must never be true</td></tr>
+  <tr><td><code>eventually X</code></td><td>X must become true at some point</td></tr>
+  <tr><td><code>leads_to X -&gt; Y within N hours</code></td><td>Time-bounded liveness</td></tr>
+</table>
+</section>
+
+<section>
+<h2>Comments</h2>
+<ul>
+  <li><code>--</code> line comment</li>
+  <li><code>---</code> doc comment (preserved in output)</li>
+</ul>
+</section>
+
+</main>
+
+<footer class="site-footer">
+  <div class="container">
+    <div>ARIA is MIT-licensed.</div>
+    <div><a href="https://github.com/AxiomMarketing/ARIA">GitHub</a> · <a href="https://www.npmjs.com/package/aria-lang">npm</a></div>
+  </div>
+</footer>
+
+</body>
+</html>

@@ -500,6 +500,9 @@ export class Lexer {
       if (/[a-zA-Z_]/.test(char!)) {
         const ident = this.readIdentifier();
         const kind = KEYWORDS[ident] || "identifier";
+        // Note: `ident` is always passed as the 3rd arg (`raw`), ensuring that
+        // tokenToString() can always recover the original text for keyword tokens.
+        // This is load-bearing for collectUntilKeyword() expression serialization.
         this.addToken(kind as TokenKind, kind === "identifier" ? ident : null, ident);
         continue;
       }

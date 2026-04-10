@@ -168,12 +168,13 @@ function generateTypeDef(t: TypeDef): string[] {
       break;
     }
     case "Record": {
-      if (t.fields && t.fields.length > 0) {
+      {
         // Phase 7.2: separate storage fields from computed fields.
         // Storage fields go into the Zod schema; computed fields are emitted
         // as an intersection interface populated by the consumer or AI.
-        const storageFields = t.fields.filter((f) => !f.computed);
-        const computedFields = t.fields.filter((f) => f.computed);
+        const allFields = t.fields || [];
+        const storageFields = allFields.filter((f) => !f.computed);
+        const computedFields = allFields.filter((f) => f.computed);
 
         lines.push(`export const ${schemaName} = z.object({`);
         for (const f of storageFields) {
@@ -204,6 +205,7 @@ function generateTypeDef(t: TypeDef): string[] {
       }
       break;
     }
+    // end case Record
     case "Enum": {
       if (t.variants && t.variants.length > 0) {
         const values = t.variants.map((v) => `"${v.name}"`).join(", ");
@@ -235,8 +237,12 @@ function generateTypeDef(t: TypeDef): string[] {
 }
 
 function zodConstraintFromWhere(w: WhereClause, zodType: string): string {
-  // TODO: Use w.parsedExpression for more precise generation when available
-  // Currently uses string-based regex matching as fallback
+  // Design decision: Zod constraints are generated from the raw expression string
+  // via regex matching. The optional `w.parsedExpression` AST is available but
+  // intentionally NOT consumed here — the string approach covers all current
+  // patterns (gt, gte, lt, lte, length, regex, starts_with, compound and/or)
+  // and is simpler to maintain. Migration to the expression AST is a v0.2 task
+  // that would enable arbitrary computed Zod chains but requires a full tree walker.
   const expr = w.expression.trim();
 
   // Handle compound expressions: "self > 0 and self < 100"
@@ -251,9 +257,10 @@ function zodConstraintFromWhere(w: WhereClause, zodType: string): string {
     return `.refine((val) => { ${checks} return true; }, { message: ${JSON.stringify(expr)} })`;
   }
 
-  // self > 0  (special case → .positive())
-  if (expr.match(/^self\s*>\s*0$/) && zodType === "number") {
-    return `.positive()`;
+  // self > 0  (special case → .positive() for number, .min(1) for array)
+  if (expr.match(/^self\s*>\s*0$/)) {
+    if (zodType === "number") return `.positive()`;
+    if (zodType === "array") return `.min(1)`;
   }
 
   // self >= 0  (special case → .nonnegative())
@@ -261,29 +268,29 @@ function zodConstraintFromWhere(w: WhereClause, zodType: string): string {
     return `.nonnegative()`;
   }
 
-  // self > N
-  const gtMatch = expr.match(/^self\s*>\s*(\d+)$/);
+  // self > N (supports negative numbers)
+  const gtMatch = expr.match(/^self\s*>\s*(-?\d+)$/);
   if (gtMatch) {
     const val = parseInt(gtMatch[1]);
     return zodType === "number" ? `.gt(${val})` : "";
   }
 
-  // self >= N
-  const gteMatch = expr.match(/^self\s*>=\s*(\d+)$/);
+  // self >= N (supports negative numbers)
+  const gteMatch = expr.match(/^self\s*>=\s*(-?\d+)$/);
   if (gteMatch) {
     const val = parseInt(gteMatch[1]);
     return zodType === "number" ? `.gte(${val})` : "";
   }
 
-  // self < N
-  const ltMatch = expr.match(/^self\s*<\s*(\d+)$/);
+  // self < N (supports negative numbers)
+  const ltMatch = expr.match(/^self\s*<\s*(-?\d+)$/);
   if (ltMatch) {
     const val = parseInt(ltMatch[1]);
     return zodType === "number" ? `.lt(${val})` : "";
   }
 
-  // self <= N
-  const lteMatch = expr.match(/^self\s*<=\s*([\d_]+)$/);
+  // self <= N (supports negative numbers and underscores)
+  const lteMatch = expr.match(/^self\s*<=\s*(-?[\d_]+)$/);
   if (lteMatch) {
     const val = parseInt(lteMatch[1].replace(/_/g, ""));
     return zodType === "number" ? `.lte(${val})` : "";
@@ -563,6 +570,7 @@ function generateBehavior(b: BehaviorDef): string[] {
 
   // Export invariants as string array for runtime inspection / documentation
   if (b.invariants.length > 0) {
+    lines.push(`/** @internal Invariant expressions for documentation/tooling. Format may change. */`);
     lines.push(`export const ${name}Invariants: readonly string[] = [`);
     for (const inv of b.invariants) {
       lines.push(`  ${JSON.stringify(inv.expression)},`);
@@ -662,6 +670,7 @@ function kebab(s: string): string {
 }
 
 function camelCase(s: string): string {
+  if (!s) return s;
   const first = s[0].toLowerCase();
   return first + s.slice(1);
 }

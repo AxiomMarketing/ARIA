@@ -160,6 +160,46 @@ describe("Phase 7.4 — Temporal assertions in generators", () => {
   });
 });
 
+describe("Phase 7.4 — Injection sanitization", () => {
+  it("Mermaid sanitizes -> to arrow in invariant notes", () => {
+    const spec = BASE + [
+      'behavior X',
+      '  states',
+      '    a',
+      '    b',
+      '  initial a',
+      '  transitions',
+      '    a -> b',
+      '  invariants',
+      '    leads_to a -> b within 1 hours',
+    ].join('\n');
+    const m = parseFile(spec);
+    const diagrams = generateMermaid(m);
+    // Inside notes, -> is replaced with → to avoid Mermaid parser conflicts
+    expect(diagrams[0].diagram).toContain("→");
+    expect(diagrams[0].diagram).not.toMatch(/note[\s\S]*->/);
+  });
+
+  it("TypeScript sanitizes */ in JSDoc invariant", () => {
+    const spec = BASE + [
+      'behavior X',
+      '  states',
+      '    a',
+      '    b',
+      '  initial a',
+      '  transitions',
+      '    a -> b',
+      '  invariants',
+      '    always status != "end of block */"',
+    ].join('\n');
+    const m = parseFile(spec);
+    const files = generateTypeScript(m);
+    const behaviors = files.find((f) => f.path.includes("behaviors"));
+    // */ must be sanitized to prevent premature JSDoc closure
+    expect(behaviors?.content).not.toContain("*/\"");
+  });
+});
+
 describe("Phase 7.4 — No regression on behaviors without invariants", () => {
   it("omits @invariant JSDoc when behavior has none", () => {
     const spec = BASE + [

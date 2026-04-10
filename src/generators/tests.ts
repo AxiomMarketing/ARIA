@@ -153,10 +153,22 @@ function expressionToExpect(expr: string): string | null {
     return `result.${s}`;
   };
 
-  // result == ErrorType with field: value  (error type match — check before == catch-all)
-  const errorTypeMatch = expr.match(/^result\s*==\s*(\w+)\s+with/);
+  // result == ErrorType with field: value  (error type match with fields)
+  const errorTypeWithMatch = expr.match(/^result\s*==\s*(\w+)\s+with/);
+  if (errorTypeWithMatch) {
+    return `expect(result.kind).toBe("${errorTypeWithMatch[1]}");`;
+  }
+
+  // result == ErrorType  (error type match without fields — e.g. `result == TransactionNotFound`)
+  const errorTypeMatch = expr.match(/^result\s*==\s*([A-Z]\w+)$/);
   if (errorTypeMatch) {
     return `expect(result.kind).toBe("${errorTypeMatch[1]}");`;
+  }
+
+  // x starts_with "y"  (string prefix assertion)
+  const startsWithMatch = expr.match(/^([\w.]+)\s+starts_with\s+"([^"]+)"$/);
+  if (startsWithMatch) {
+    return `expect(${normalize(startsWithMatch[1])}.startsWith("${startsWithMatch[2]}")).toBe(true);`;
   }
 
   // x != y

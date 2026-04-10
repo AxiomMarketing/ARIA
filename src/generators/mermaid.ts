@@ -56,10 +56,14 @@ function generateStateDiagram(b: BehaviorDef): string {
 
   lines.push(``);
 
-  // Terminal states (states with no outgoing transitions)
+  // Terminal states: states with no outgoing transitions AND at least one
+  // incoming transition (i.e., reachable end-states). Orphan states (no
+  // incoming AND no outgoing) are not marked terminal — they are just
+  // unreachable and the checker warns about them.
   const statesWithOutgoing = new Set(b.transitions.map((t) => t.from));
+  const statesWithIncoming = new Set(b.transitions.map((t) => t.to));
   const terminalStates = b.states.filter(
-    (s) => !statesWithOutgoing.has(s.name)
+    (s) => !statesWithOutgoing.has(s.name) && (statesWithIncoming.has(s.name) || s.name === b.initialState)
   );
   for (const s of terminalStates) {
     lines.push(`  ${s.name} --> [*]`);

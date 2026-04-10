@@ -238,6 +238,7 @@ export interface CompensateRule {
   onStepFailure: number;
   afterStepSuccess: number;
   action: string; // contract to call for compensation
+  fields?: Record<string, string>; // optional `with field: value` payload
 }
 
 // ============================================================================

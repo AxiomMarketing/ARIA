@@ -114,11 +114,7 @@ export class Parser {
     }
   }
 
-  private skipWhitespaceAndComments(): void {
-    while (this.match('newline', 'docComment')) {
-      this.advance();
-    }
-  }
+
 
   private collectUntilKeyword(...keywords: TokenKind[]): string {
     const startPos = this.position;
@@ -388,6 +384,53 @@ export class Parser {
           this.advance();
           unit = this.expect('string').value as string;
           this.skipNewlines();
+        } else if (this.match('docComment') && (base === 'Record' || base === 'Enum')) {
+          // Consume doc comments between fields/variants — they attach to the NEXT field
+          // Accumulate multiple consecutive doc comments into one
+          const docParts: string[] = [];
+          while (this.match('docComment')) {
+            docParts.push(this.advance().value as string);
+            this.skipNewlines();
+          }
+          // The accumulated doc comment will be picked up by the next field/variant
+          // via the inline doc comment check below
+          if (this.match('identifier')) {
+            if (base === 'Record') {
+              if (!fields) fields = [];
+              const fieldName = this.advance().value as string;
+              this.expect('colon');
+              const fieldType = this.parseTypeReference();
+              let computed: string | undefined;
+              if (this.match('computed')) {
+                this.advance();
+                this.expect('as');
+                computed = this.collectUntilKeyword();
+              }
+              // Check for inline doc comment too
+              if (this.match('docComment')) {
+                docParts.push(this.advance().value as string);
+              }
+              fields.push({
+                kind: 'field',
+                name: fieldName,
+                type: fieldType,
+                docComment: docParts.join('\n'),
+                computed,
+              });
+            } else {
+              if (!variants) variants = [];
+              const variantName = this.advance().value as string;
+              if (this.match('docComment')) {
+                docParts.push(this.advance().value as string);
+              }
+              variants.push({
+                kind: 'variant',
+                name: variantName,
+                docComment: docParts.join('\n'),
+              });
+            }
+          }
+          this.skipNewlines();
         } else if (this.match('identifier') && base === 'Record') {
           // Parse record fields
           if (!fields) fields = [];
@@ -461,7 +504,7 @@ export class Parser {
     let name: string;
     let typeArgs: TypeReference[] | undefined;
 
-    if (token.kind === 'identifier' && token.value === 'List' || token.raw === 'List') {
+    if (token.kind === 'identifier' && (token.value === 'List' || token.raw === 'List')) {
       this.advance();
       if (this.match('of')) {
         this.advance();
@@ -979,15 +1022,26 @@ export class Parser {
 
                 const action = this.expect('identifier').value as string;
 
-                // Consume optional `with field: value, field: value` clause
+                // Parse optional `with field: value, field: value` clause
+                let compensateFields: Record<string, string> | undefined;
                 if (this.match('with')) {
                   this.advance();
+                  compensateFields = {};
                   while (!this.match('newline', 'dedent', 'eof')) {
-                    const t = this.current();
-                    if (t.kind === 'comma') { this.advance(); continue; }
-                    // Read until newline/dedent/eof — we discard the fields for now
-                    // since CompensateRule AST does not track them. Future: store as payload.
+                    const nameToken = this.current();
+                    const rawName = (nameToken.value as string) || (nameToken.raw as string) || '';
+                    const isValid = nameToken.kind === 'identifier' || /^[a-zA-Z_]\w*$/.test(rawName);
+                    if (!isValid) break;
                     this.advance();
+                    this.expect('colon');
+                    const valueTokens: string[] = [];
+                    while (!this.match('comma', 'newline', 'dedent', 'eof')) {
+                      const t = this.current();
+                      valueTokens.push(t.raw || this.tokenToString(t));
+                      this.advance();
+                    }
+                    compensateFields[rawName] = valueTokens.join(' ').trim();
+                    if (this.match('comma')) this.advance();
                   }
                 }
 
@@ -1002,6 +1056,7 @@ export class Parser {
                   onStepFailure,
                   afterStepSuccess,
                   action,
+                  fields: compensateFields,
                 });
               } else {
                 // Unknown token in compensate body — skip it to prevent infinite loop
