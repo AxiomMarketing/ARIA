@@ -2,7 +2,26 @@
 
 **A formal specification language where humans write the WHAT, and AI generates the HOW.**
 
-📖 **[Documentation site](https://aria-lang.github.io)** · 🚀 **[Tutorial](docs/tutorial.md)** · 🧪 **[Examples](docs/examples.md)** · 📘 **[CLI Reference](docs/cli-reference.md)**
+🚀 **[Tutorial](docs/tutorial.md)** · 🧪 **[Examples](docs/examples.md)** · 📘 **[CLI Reference](docs/cli-reference.md)** · 📖 **[Language Reference](LANGUAGE.md)**
+
+## Install
+
+**Via npm (CLI + library):**
+```bash
+npm install -g aria-lang
+# or
+npx aria-lang --version
+```
+
+**Via Claude Code (skill + workflows):**
+```
+/plugin marketplace add AxiomMarketing/ARIA
+/plugin install aria@aria-lang
+```
+
+After installing the Claude Code plugin, type `/aria` to access 4 automatic workflows (forward / reverse / maintain / setup). See the [Claude Code Plugin](#claude-code-plugin) section below for details.
+
+---
 
 ARIA is a specification language designed from the ground up for AI-driven development. You write contracts, types, and state machines in `.aria` files. The ARIA compiler generates TypeScript + Zod schemas, Mermaid diagrams, and test suites. AI agents (Claude, GPT, Gemini) then implement the actual code, guided by your specifications.
 
