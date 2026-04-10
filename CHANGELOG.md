@@ -7,6 +7,33 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.3] - 2026-04-11
+
+### Security
+
+Full codebase security audit resolved 13 findings across 3 domains (5 BLOCKING CWE issues, 8 robustness improvements).
+
+- **CWE-94 — Code injection** — `safeName()` guard validates all identifier interpolation in TypeScript/Rust/Python generators. Rejects names containing semicolons, quotes, or non-identifier characters.
+- **CWE-94 — ReDoS** — `isSafeRegex()` rejects regex patterns with nested quantifiers (e.g. `(a+)+`) before emission.
+- **CWE-22 — Path traversal (imports)** — `validatePathWithinRoot()` blocks `import Money from "../../../../etc/passwd"`.
+- **CWE-22 — Path traversal (output)** — Output directory validation against project root.
+- **CWE-214 — Secret exposure** — Removed `--api-key` CLI flag. Use `ANTHROPIC_API_KEY` environment variable only.
+- **CWE-400 — DoS** — 1 MB input size guard on all MCP tool handlers (`aria_check`, `aria_gen`, `aria_diagram`, `aria_explain`).
+- **CWE-59 — Symlink following** — `findAriaFiles()` now skips symbolic links to prevent traversal outside project.
+
+### Fixed
+
+- AI output now checked with `detectDangerousPatterns()` — warns on `require('child_process')`, `eval`, `exec`, `process.env` patterns before writing to disk.
+- Anthropic client now has a 2-minute timeout to prevent hung API calls.
+- `aria watch` cleans up file watcher and debounce timer on SIGINT/SIGTERM (was leaking FDs).
+- `aria check <dir>` now handles permission errors gracefully with a warning instead of crashing.
+- MCP server uses `catch (err: unknown)` + `toErrorMessage()` — no more `"Error: undefined"` for non-Error throws.
+- Parser `BLOCK_KEYWORDS` promoted to a `static readonly Set` (was re-created on every lookup).
+
+### Added
+
+- **`src/security.ts`** — Centralized security utilities: `safeName`, `isSafeRegex`, `validatePathWithinRoot`, `validateInputSize`, `writeFileAtomic`, `toErrorMessage`, `detectDangerousPatterns`.
+
 ## [0.1.2] - 2026-04-10
 
 ### Fixed
@@ -111,7 +138,8 @@ Initial public release.
 - `aria implement` only supports `typescript` target currently
 - `aria implement` only supports `typescript` target currently
 
-[Unreleased]: https://github.com/AxiomMarketing/ARIA/compare/v0.1.2...HEAD
+[Unreleased]: https://github.com/AxiomMarketing/ARIA/compare/v0.1.3...HEAD
+[0.1.3]: https://github.com/AxiomMarketing/ARIA/compare/v0.1.2...v0.1.3
 [0.1.2]: https://github.com/AxiomMarketing/ARIA/compare/v0.1.1...v0.1.2
 [0.1.1]: https://github.com/AxiomMarketing/ARIA/compare/v0.1.0...v0.1.1
 [0.1.0]: https://github.com/AxiomMarketing/ARIA/releases/tag/v0.1.0
