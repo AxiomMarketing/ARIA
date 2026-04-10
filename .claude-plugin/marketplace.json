@@ -2,7 +2,7 @@
   "name": "aria-lang",
   "owner": {
     "name": "Jonathan Dewaele",
-    "email": "jonathan@axiommarketing.dev"
+    "email": "contact@axiom-marketing.io"
   },
   "metadata": {
     "description": "ARIA — AI-Readable Intent Architecture. Formal specification language compiler with skills, MCP server, and reverse-engineering tools for AI-driven development.",
