@@ -13,6 +13,7 @@ import { buildImplementPrompt } from "../prompt.js";
 import { createProvider } from "../providers/index.js";
 import type { ContractDef, AriaModule } from "../ast.js";
 import type { ProviderName, AIProvider } from "../providers/index.js";
+import { detectDangerousPatterns } from "../security.js";
 
 export interface ImplementOptions {
   ai: ProviderName;
@@ -104,6 +105,14 @@ export async function runImplement(file: string, opts: ImplementOptions): Promis
     } catch (err: any) {
       console.error(`  \u2717 AI call failed for ${contract.name}: ${err.message}`);
       process.exit(1);
+    }
+
+    // BE-2: Check AI output for dangerous patterns before writing to disk
+    const warnings = detectDangerousPatterns(implementation);
+    if (warnings.length > 0) {
+      console.error(`  \u26a0 AI output for ${contract.name} contains suspicious patterns:`);
+      for (const w of warnings) console.error(`    ${w}`);
+      console.error(`  Review the generated code carefully before running it.`);
     }
 
     // Replace the stub with the AI implementation

@@ -1,6 +1,6 @@
 {
   "name": "aria-lang",
-  "version": "0.1.0",
+  "version": "0.1.2",
   "description": "ARIA — AI-Readable Intent Architecture. A formal specification language for AI-driven development.",
   "type": "module",
   "main": "dist/index.js",
@@ -13,6 +13,7 @@
   },
   "bin": {
     "aria": "dist/cli.js",
+    "aria-lang": "dist/cli.js",
     "aria-mcp": "dist/mcp.js"
   },
   "files": [

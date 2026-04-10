@@ -21,6 +21,7 @@ import {
 
 import { parseFile } from "./parser.js";
 import { check, formatCheckResult } from "./checker.js";
+import { validateInputSize, toErrorMessage } from "./security.js";
 import { generateTypeScript } from "./generators/typescript.js";
 import { generateRust } from "./generators/rust.js";
 import { generatePython } from "./generators/python.js";
@@ -125,6 +126,7 @@ const TOOLS = [
 // ============================================================================
 
 export function handleCheck(source: string): { ok: boolean; summary: string; errors: string[]; warnings: string[] } {
+  validateInputSize(source, "source");
   const module = parseFile(source);
   const result = check(module);
   return {
@@ -139,6 +141,7 @@ export function handleGen(
   source: string,
   target: string = "typescript"
 ): { files: { path: string; content: string }[] } {
+  validateInputSize(source, "source");
   const module = parseFile(source);
 
   if (target === "typescript") {
@@ -155,6 +158,7 @@ export function handleGen(
 }
 
 export function handleDiagram(source: string): { diagrams: { name: string; mermaid: string }[] } {
+  validateInputSize(source, "source");
   const module = parseFile(source);
   const outputs = generateMermaid(module);
   return {
@@ -163,6 +167,7 @@ export function handleDiagram(source: string): { diagrams: { name: string; merma
 }
 
 export function handleExplain(source: string): string {
+  validateInputSize(source, "source");
   const module = parseFile(source);
   const result = check(module);
   const lines: string[] = [];
@@ -348,9 +353,9 @@ async function main() {
             isError: true,
           };
       }
-    } catch (err: any) {
+    } catch (err: unknown) {
       return {
-        content: [{ type: "text" as const, text: `Error: ${err.message}` }],
+        content: [{ type: "text" as const, text: `Error: ${toErrorMessage(err)}` }],
         isError: true,
       };
     }

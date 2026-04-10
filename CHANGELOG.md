@@ -7,6 +7,32 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.2] - 2026-04-10
+
+### Fixed
+
+- All TODO items resolved (H7-H10, M3-M12, L1-L2, S1-S6) — zero remaining
+- `aria watch --gen` now actually regenerates code on file changes (was a no-op)
+- Cross-file import validation: `aria check` now verifies imported types exist in source file
+- Compensate `with` clause fields now stored in AST (were silently discarded)
+- Parser: doc comments between record fields no longer crash; multiple consecutive doc comments accumulated
+- Zod generator: negative numbers (`self > -10`), array `self > 0` → `.min(1)`, `camelCase("")` crash guard
+- Test generator: `result == TypeName` without `with` and `starts_with` assertions now supported
+- Parser: operator precedence fix for `parseTypeReference` List check
+- Mermaid: orphan states no longer incorrectly marked as terminal
+- Dead method `skipWhitespaceAndComments` removed
+
+### Added
+
+- HTML documentation pages (tutorial, CLI reference, language reference, examples) — navigation now works locally without Jekyll
+- `aria-lang` bin alias for `npx aria-lang` compatibility
+
+## [0.1.1] - 2026-04-10
+
+### Fixed
+
+- **`npx aria-lang` now works** — Added `aria-lang` as a bin alias so `npx aria-lang check ...` resolves correctly.
+
 ### Added
 
 - **IDE support for Cursor, JetBrains, and Neovim** — Cursor MCP config template, JetBrains TextMate bundle import + External Tools + File Watcher instructions, Neovim syntax highlighting (`syntax/aria.vim`) + file type detection (`ftdetect/aria.vim`) + keybinding examples + mcp.nvim integration. All in `editors/`. (Phase 9.4)
@@ -85,5 +111,7 @@ Initial public release.
 - `aria implement` only supports `typescript` target currently
 - `aria implement` only supports `typescript` target currently
 
-[Unreleased]: https://github.com/aria-lang/aria/compare/v0.1.0...HEAD
-[0.1.0]: https://github.com/aria-lang/aria/releases/tag/v0.1.0
+[Unreleased]: https://github.com/AxiomMarketing/ARIA/compare/v0.1.2...HEAD
+[0.1.2]: https://github.com/AxiomMarketing/ARIA/compare/v0.1.1...v0.1.2
+[0.1.1]: https://github.com/AxiomMarketing/ARIA/compare/v0.1.0...v0.1.1
+[0.1.0]: https://github.com/AxiomMarketing/ARIA/releases/tag/v0.1.0

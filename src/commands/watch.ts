@@ -69,12 +69,21 @@ export function runWatch(filePath: string, opts: WatchOptions = {}): void {
     timer = setTimeout(() => runOnce(path, opts), 100);
   };
 
-  watch(absPath, { recursive: stat.isDirectory() }, (eventType, fileName) => {
+  const watcher = watch(absPath, { recursive: stat.isDirectory() }, (eventType, fileName) => {
     if (!fileName) return;
     if (stat.isDirectory() && !fileName.endsWith(".aria")) return;
     const target = stat.isDirectory() ? resolve(absPath, fileName) : absPath;
     debounced(target);
   });
+
+  // BE-4: Clean up timer + watcher on process exit to prevent FD leaks
+  const cleanup = () => {
+    if (timer) clearTimeout(timer);
+    watcher.close();
+    process.exit(0);
+  };
+  process.on("SIGINT", cleanup);
+  process.on("SIGTERM", cleanup);
 
   // Keep process alive
   process.stdin.resume();

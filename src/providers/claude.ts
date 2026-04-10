@@ -19,7 +19,7 @@ export function createClaudeProvider(opts: ClaudeProviderOptions = {}): AIProvid
     throw new Error("ANTHROPIC_API_KEY environment variable is required (or pass apiKey option)");
   }
 
-  const client = new Anthropic({ apiKey });
+  const client = new Anthropic({ apiKey, timeout: 120_000 /* 2 min */ });
 
   return {
     name: "claude",

@@ -4,8 +4,9 @@
  */
 
 import { Command } from "commander";
-import { readFileSync, writeFileSync, mkdirSync, existsSync, readdirSync, statSync } from "node:fs";
+import { readFileSync, writeFileSync, mkdirSync, existsSync, readdirSync, statSync, lstatSync } from "node:fs";
 import { resolve, basename, dirname, join, relative } from "node:path";
+import { validatePathWithinRoot, toErrorMessage, writeFileAtomic } from "./security.js";
 import { parseFile } from "./parser.js";
 import { check, formatCheckResult } from "./checker.js";
 import { generateTypeScript } from "./generators/typescript.js";
@@ -34,8 +35,16 @@ program
 
 function findAriaFiles(dir: string): string[] {
   const results: string[] = [];
-  const entries = readdirSync(dir, { withFileTypes: true });
+  let entries;
+  try {
+    entries = readdirSync(dir, { withFileTypes: true });
+  } catch {
+    console.error(`\u26a0 Skipping inaccessible directory: ${dir}`);
+    return results;
+  }
   for (const entry of entries) {
+    // Skip symlinks to prevent traversal outside project (CWE-59)
+    if (entry.isSymbolicLink()) continue;
     const full = join(dir, entry.name);
     if (entry.isDirectory()) {
       results.push(...findAriaFiles(full));
@@ -190,6 +199,8 @@ program
       const resolveImport = (fromPath: string): Set<string> | null => {
         try {
           const importAbsPath = resolve(dirname(resolvedPath), fromPath);
+          // SEC-3: prevent path traversal via import paths (CWE-22)
+          validatePathWithinRoot(importAbsPath, process.cwd(), "import");
           if (!existsSync(importAbsPath)) return null;
           const importSource = readFileSync(importAbsPath, "utf-8");
           const importModule = parseFile(importSource);
@@ -471,9 +482,10 @@ program
   .option("--ai <provider>", "AI provider to use (claude)", "claude")
   .option("-t, --target <lang>", "Target language", "typescript")
   .option("-o, --output <dir>", "Output directory", "./generated")
-  .option("--api-key <key>", "AI provider API key (or set ANTHROPIC_API_KEY env var)")
+  // SEC-5: --api-key removed (CWE-214: secrets in process listings/shell history).
+  // Use ANTHROPIC_API_KEY environment variable instead.
   .option("--model <model>", "AI model to use")
-  .action(async (file: string, opts: { ai: string; target: string; output: string; apiKey?: string; model?: string }) => {
+  .action(async (file: string, opts: { ai: string; target: string; output: string; model?: string }) => {
     if (opts.target !== "typescript") {
       console.error(`\u2717 Only "typescript" target is supported for implement.`);
       process.exit(1);
@@ -482,7 +494,7 @@ program
       ai: opts.ai as ProviderName,
       target: "typescript",
       output: opts.output,
-      apiKey: opts.apiKey,
+      apiKey: undefined,
       model: opts.model,
     });
   });

@@ -16,6 +16,7 @@ import type {
   Assertion,
   Step,
 } from "../ast.js";
+import { safeName, isSafeRegex } from "../security.js";
 
 export interface GeneratedFile {
   path: string;
@@ -89,6 +90,7 @@ function generateTypesFile(module: AriaModule, types: TypeDef[]): string {
 
 function generateTypeDef(t: TypeDef): string[] {
   const lines: string[] = [];
+  safeName(t.name);
   const schemaName = t.name + "Schema";
 
   // Generic types: emit a plain TypeScript type alias without a Zod schema.
@@ -323,10 +325,14 @@ function zodConstraintFromWhere(w: WhereClause, zodType: string): string {
     return "";
   }
 
-  // self matches /regex/ — sanitize to prevent code injection
+  // self matches /regex/ — sanitize to prevent code injection + ReDoS
   const regexMatch = expr.match(/^self\s+matches\s+\/(.+)\/$/);
   if (regexMatch) {
-    const safeRegex = regexMatch[1].replace(/\\/g, "\\\\");
+    const pattern = regexMatch[1];
+    if (!isSafeRegex(pattern)) {
+      return `.refine(() => true, { message: "Regex rejected as potentially unsafe (ReDoS risk)" })`;
+    }
+    const safeRegex = pattern.replace(/\\/g, "\\\\");
     return zodType === "string" ? `.regex(new RegExp(${JSON.stringify(safeRegex)}))` : "";
   }
 

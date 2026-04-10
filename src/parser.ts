@@ -149,32 +149,23 @@ export class Parser {
     return result.trim();
   }
 
+  private static readonly BLOCK_KEYWORDS = new Set<string>([
+    'where', 'inputs', 'requires', 'ensures', 'on_failure', 'examples',
+    'effects', 'depends_on', 'timeout', 'retry', 'rate_limit',
+    'states', 'initial', 'transitions', 'invariants', 'forbidden',
+    'steps', 'compensate',
+  ]);
+
+  private static readonly STRUCTURAL_TOKENS = new Set<string>([
+    'indent', 'dedent', 'newline', 'eof', 'docComment', 'lineComment',
+  ]);
+
   private isBlockKeyword(kind: TokenKind): boolean {
-    return [
-      'where',
-      'inputs',
-      'requires',
-      'ensures',
-      'on_failure',
-      'examples',
-      'effects',
-      'depends_on',
-      'timeout',
-      'retry',
-      'rate_limit',
-      'states',
-      'initial',
-      'transitions',
-      'invariants',
-      'forbidden',
-      'steps',
-      'compensate',
-    ].includes(kind);
+    return Parser.BLOCK_KEYWORDS.has(kind);
   }
 
   private tokenToString(token: Token): string {
-    const structural = ['indent', 'dedent', 'newline', 'eof', 'docComment', 'lineComment'];
-    if (structural.includes(token.kind)) return '';
+    if (Parser.STRUCTURAL_TOKENS.has(token.kind)) return '';
     if (token.kind === 'string') return `"${token.value}"`;
     if (token.kind === 'integer') return String(token.value);
     if (token.kind === 'decimal') return String(token.value);

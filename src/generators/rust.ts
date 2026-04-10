@@ -10,6 +10,7 @@ import type {
   BehaviorDef,
   WhereClause,
 } from "../ast.js";
+import { safeName, isSafeRegex } from "../security.js";
 
 export interface GeneratedFile {
   path: string;
