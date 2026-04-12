@@ -1,6 +1,6 @@
 ---
 name: step-rv-04-drift
-description: Reverse workflow — detect drift between enriched specs and implementation
+description: Reverse workflow — detect drift, then optionally bridge to code generation
 ---
 
 # Step RV-04 — Drift Detection + Action Plan
@@ -8,15 +8,15 @@ description: Reverse workflow — detect drift between enriched specs and implem
 ## MANDATORY EXECUTION RULES
 
 - 🛑 NEVER auto-fix drift in this step — only report
-- 🛑 NEVER load another step after this — terminal step
 - ✅ ALWAYS run `aria drift specs/ {import_source}` to compare both directions
 - ✅ ALWAYS produce a written drift report at `specs/DRIFT.md`
 - ✅ ALWAYS provide a clear action plan
-- 📋 YOU ARE A REPORTER — let the user decide what to fix
+- ✅ ALWAYS offer the user a choice: stop here OR continue to code generation
+- 📋 YOU ARE A REPORTER — let the user decide what to fix and whether to generate code
 
 ## CONTEXT BOUNDARIES
 
-- Coming from: `step-rv-03-enrich.md` with enriched specs
+- Coming from: `step-audit-consistency.md` with consistent, deduplicated specs
 - Going to: nowhere — workflow terminates here
 
 ## YOUR TASK
@@ -139,16 +139,67 @@ Write a small state file at `specs/.aria-state.json` so future `/aria` invocatio
 ❌ Hiding findings from the user
 ❌ Not categorizing findings (just dumping the raw report)
 
+### 6. Bridge to implementation
+
+After the drift report, ask the user what they want to do next:
+
+```yaml
+questions:
+  - header: "Next step"
+    question: "Drift report ready. What voulez-vous faire maintenant ?"
+    options:
+      - label: "Stop here"
+        description: "I'll review the specs and drift report manually"
+      - label: "Generate TypeScript + Zod from specs (Recommended)"
+        description: "Run aria gen on all enriched specs to produce .types.ts, .contracts.ts, .behaviors.ts"
+      - label: "Generate + Implement with AI"
+        description: "Run aria gen then aria implement to have Claude fill in all function stubs"
+      - label: "Generate diagrams"
+        description: "Run aria diagram to produce Mermaid state diagrams for all behaviors"
+    multiSelect: false
+```
+
+**If user chooses "Generate TypeScript + Zod":**
+
+```bash
+npx aria-lang gen specs/ -o {output_dir}
+```
+
+Then report:
+```
+✓ Generated code from {N} specs:
+  - {output_dir}/*.types.ts (Zod schemas + TypeScript interfaces)
+  - {output_dir}/*.contracts.ts (runtime contract validation)
+  - {output_dir}/*.behaviors.ts (state machine stubs)
+
+Next: fill in the function bodies guided by the contracts.
+You can use `aria implement --ai claude` to have AI fill them.
+```
+
+**If user chooses "Generate + Implement with AI":**
+
+```bash
+npx aria-lang gen specs/ -o {output_dir}
+npx aria-lang implement {output_dir} --ai claude
+```
+
+**If user chooses "Generate diagrams":**
+
+```bash
+npx aria-lang diagram specs/ -o docs/diagrams.md
+```
+
 ## COMPLETION
 
-The reverse workflow ends here. Do NOT load another step.
+The reverse workflow ends after the user's choice is executed (or immediately if they choose "Stop here").
 
 The user now has:
 - Generated `.aria` skeletons in `specs/`
-- Enriched specs with requires/ensures/examples
+- Enriched specs with formal requires/ensures/examples
 - A drift report at `specs/DRIFT.md`
 - A clear action plan
+- (Optionally) Generated TypeScript code, AI implementations, or Mermaid diagrams
 
 <critical>
-This is a terminal step. Stop after the report.
+Always offer the implementation bridge — the reverse workflow's value is diminished if specs stay as dead documents. The whole point is: specs → code → tests.
 </critical>

@@ -13,6 +13,8 @@ next_step: steps/step-fw-04-gen.md
 - ✅ ALWAYS show the spec to the user (or summary if very long)
 - ✅ ALWAYS use AskUserQuestion for the approval prompt
 - 📋 YOU ARE A REVIEWER, not an editor — let the user decide what to change
+- ✅ ALWAYS run `aria check --strict` (not just `aria check`) to enforce examples + on_failure
+- ✅ ALWAYS run the quality checklist before presenting to user
 
 ## CONTEXT BOUNDARIES
 
@@ -43,18 +45,30 @@ Summary:
 
 If the spec is over 100 lines, show the first 50 and last 30 lines with `... (truncated) ...` in between, plus a count of what was hidden.
 
-### 2. Run `aria check`
+### 2. Run `aria check --strict`
 
-Execute:
+Execute strict validation (enforces examples + on_failure on every contract):
 
 ```bash
-npx aria-lang check {spec_path}
+npx aria-lang check {spec_path} --strict
 ```
 
-Or fallback to dev mode if `aria-lang` isn't installed:
+Or fallback to dev mode:
 
 ```bash
-npx tsx /Users/admin/WebstormProjects/ARIA/src/cli.ts check {spec_path}
+npx tsx /Users/admin/WebstormProjects/ARIA/src/cli.ts check {spec_path} --strict
+```
+
+Then run formatter check:
+
+```bash
+npx aria-lang fmt {spec_path} --check
+```
+
+If formatting drift is detected, auto-fix it:
+
+```bash
+npx aria-lang fmt {spec_path}
 ```
 
 ### 3. Handle check results
@@ -69,7 +83,39 @@ npx tsx /Users/admin/WebstormProjects/ARIA/src/cli.ts check {spec_path}
 - Show `✓ Spec validates`
 - Continue to step 4
 
-### 4. Get approval (skip if auto_mode)
+### 4. Spec Quality Checklist
+
+Before presenting to the user, verify these quality criteria manually (reading the spec):
+
+**Mandatory (block if missing):**
+- [ ] Every contract has `requires` with at least one formal expression
+- [ ] Every contract has `ensures` with at least one formal expression
+- [ ] Every contract has `on_failure` with at least one error case
+- [ ] Every contract has `examples` with at least one `given/then`
+- [ ] No primitive types in contract inputs (use domain types: `Money`, `Email`, `OrderId`)
+- [ ] No `-- prose` comments under requires/ensures (use formal expressions only)
+
+**Recommended (warn if missing):**
+- [ ] At least 2 examples per contract (happy path + error case)
+- [ ] `on_failure` covers every `requires` condition
+- [ ] Behaviors have `forbidden` transitions (not just allowed ones)
+- [ ] Behaviors have `invariants` with temporal assertions where relevant
+- [ ] Generic types used for reusable patterns (Result, PaginatedList)
+- [ ] `depends_on` declared for contracts calling external services
+- [ ] Computed fields used for derived values in records
+- [ ] Shared types imported (not redefined) if `shared-types.aria` exists
+
+**Report format:**
+```
+Spec Quality Report:
+  ✓ 4/4 mandatory checks passed
+  ⚠ 3/8 recommended: missing forbidden transitions, no depends_on, no computed fields
+```
+
+If mandatory checks fail, fix the spec before presenting to the user.
+If recommended checks miss, mention them in the summary but don't block.
+
+### 5. Get approval (skip if auto_mode)
 
 **If `{auto_mode}` = true:** auto-approve and move on.
 
@@ -89,7 +135,7 @@ questions:
     multiSelect: false
 ```
 
-### 5. Handle the answer
+### 6. Handle the answer
 
 - **Approve** → set `{spec_approved}=true` and load next step
 - **Modify** → ask the user what to change, edit the file, loop back to step 1
@@ -97,7 +143,9 @@ questions:
 
 ## SUCCESS METRICS
 
-✅ `aria check {spec_path}` exits with code 0
+✅ `aria check --strict` passes (not just `aria check`)
+✅ Quality checklist mandatory items all pass
+✅ `aria fmt --check` shows no formatting drift
 ✅ User has explicitly approved (or auto_mode skipped this)
 ✅ The spec is ready for code generation
 

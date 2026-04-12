@@ -16,7 +16,7 @@ next_step: steps/step-mt-03-fix.md
 
 ## CONTEXT BOUNDARIES
 
-- Coming from: `step-mt-01-check.md` with all specs validated
+- Coming from: `step-audit-consistency.md` with consistent, deduplicated specs
 - Going to: `step-mt-03-fix.md` with drift report
 
 ## YOUR TASK

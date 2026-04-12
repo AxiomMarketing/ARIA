@@ -15,6 +15,10 @@ next_step: steps/step-pj-04-iterate.md
 - ✅ ALWAYS include rich type definitions, not just primitives
 - ✅ ALWAYS validate each spec with `aria check` before moving to the next
 - 📋 YOU ARE A SPEC AUTHOR — write detailed specs, do not implement code
+- 🛑 NEVER define a type locally if it's already defined in shared-types.aria or an earlier module — import it
+- ✅ ALWAYS generate `shared-types.aria` FIRST, before any domain module
+- ✅ ALWAYS run `aria check --strict` (not just `aria check`) after each spec
+- ✅ ALWAYS use `aria fmt` after writing each spec
 
 ## CONTEXT BOUNDARIES
 
@@ -35,6 +39,62 @@ For each module in `{domains}`, write a complete `.aria` file with types, contra
 mkdir -p specs
 ```
 
+### 1.5 Generate shared-types.aria first
+
+Before generating domain modules, create `{specs_dir}/shared-types.aria` with types that will be shared across 2+ modules:
+
+```aria
+module SharedTypes
+  version "1.0"
+  target {target}
+
+--- Canonical shared types for the {project_name} project.
+--- Domain modules import from this file instead of redefining types locally.
+
+-- Shared domain primitives
+type UserId is String
+  where length(self) > 0
+  where length(self) <= 64
+
+type Email is String
+  where self matches /^[^@]+@[^@]+\.[^@]+$/
+  where length(self) <= 255
+
+type Money is Integer
+  where self >= 0
+
+-- Shared enums (used by 2+ modules)
+type Status is Enum
+  active
+  inactive
+  pending
+
+-- Shared generic patterns
+type Result of T, E is Record
+  success: Boolean
+  data: T
+  error: E
+
+type PaginatedList of T is Record
+  items: List of T
+  total: Integer
+  page: Integer
+```
+
+**How to decide what goes in shared-types:**
+- Types used by 2+ modules → shared-types.aria
+- Types used only by one module → local to that module
+- If unsure, keep local — the audit step will catch duplication later
+
+Validate immediately:
+
+```bash
+npx aria-lang check {specs_dir}/shared-types.aria --strict
+npx aria-lang fmt {specs_dir}/shared-types.aria
+```
+
+Add to `{generated_specs}`.
+
 ### 2. Generate each spec in dependency order
 
 Loop over `{domains}` (in `order` field). For each domain:
@@ -43,14 +103,16 @@ Loop over `{domains}` (in `order` field). For each domain:
 
 For the module `{name}`, write a comprehensive `.aria` file that includes:
 
-**Module header:**
+**Module header — always import shared types:**
 ```aria
 module {DomainName}
   version "1.0"
   target {target}
-  -- Optional: import types from earlier modules
+  import UserId, Email, Money, Status from "./shared-types.aria"
   import User from "./auth.aria"
 ```
+
+Every domain module MUST import from `shared-types.aria` at minimum. Add imports from earlier domain modules when needed. NEVER redefine a type that exists in shared-types or a prior module.
 
 **Types** — at least 2-4 per module:
 - Wrap primitives in domain types (`UserId`, `Money`, `Email`)
@@ -82,7 +144,8 @@ Write to `{specs_dir}/{kebab-domain}.aria`. Use the project's stack target.
 #### c. Validate immediately
 
 ```bash
-npx aria-lang check {specs_dir}/{kebab-domain}.aria
+npx aria-lang check {specs_dir}/{kebab-domain}.aria --strict
+npx aria-lang fmt {specs_dir}/{kebab-domain}.aria
 ```
 
 If validation fails:
@@ -109,6 +172,26 @@ npx aria-lang check {specs_dir}/
 This catches cross-module issues (e.g. a contract references a type from another module that doesn't exist).
 
 If errors occur, fix them and re-check.
+
+### 3.5 Generate dependency graph
+
+Generate a Mermaid diagram showing the import relationships between all specs:
+
+```
+Import dependency graph:
+
+```mermaid
+graph TD
+  shared-types --> auth
+  shared-types --> products
+  shared-types --> orders
+  auth --> orders
+  products --> orders
+  orders --> payments
+```
+```
+
+This helps the user visualize the architecture and spot missing or circular imports.
 
 ### 4. Set state
 
@@ -147,6 +230,10 @@ Set `{generated_specs}` = list of generated file paths.
 ✅ Cross-file imports resolve (no missing types)
 ✅ Each contract has `requires`, `ensures`, `on_failure`, `examples`
 ✅ `{generated_specs}` is set
+✅ `shared-types.aria` generated first with canonical shared types
+✅ Every domain module imports from shared-types (no local redefinitions)
+✅ All specs pass `aria check --strict`
+✅ Dependency graph shows no circular imports
 
 ## FAILURE MODES
 
@@ -155,6 +242,9 @@ Set `{generated_specs}` = list of generated file paths.
 ❌ Writing primitive types instead of domain types
 ❌ Missing examples or on_failure clauses
 ❌ Generating implementation code (this step is for SPEC only)
+❌ Defining types locally that already exist in shared-types.aria
+❌ Generating domain modules before shared-types.aria
+❌ Circular imports between domain modules
 
 ## NEXT STEP
 

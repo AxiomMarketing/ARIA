@@ -10,8 +10,11 @@ next_step: steps/step-rv-03-enrich.md
 
 - 🛑 NEVER write `.aria` files manually — use `aria-lang import` exclusively
 - 🛑 NEVER skip the post-import validation
+- 🛑 NEVER create ad-hoc directories (.aria-needs-fix/, .aria/excluded/, .aria-backup/) — log issues in `specs/IMPORT-REPORT.md`
 - ✅ ALWAYS use `--recursive` for directory imports
 - ✅ ALWAYS validate generated specs with `aria check` before next step
+- ✅ ALWAYS keep invalid specs in `specs/` (do NOT move them) — they will be fixed in rv-03
+- ✅ ALWAYS use `--draft` flag for skeleton validation (skeletons are intentionally incomplete)
 - 📋 YOU ARE A CLI DRIVER, not a parser
 
 ## CONTEXT BOUNDARIES
@@ -55,10 +58,12 @@ Set `{generated_specs}` = list of paths.
 ### 3. Validate every generated spec
 
 ```bash
-npx aria-lang check specs/ --json
+npx aria-lang check specs/ --json --draft
 ```
 
-If any spec fails to parse, the importer produced invalid syntax — that's a bug. Report it but continue with the valid ones.
+The `--draft` flag is used here because skeletons are intentionally incomplete (missing requires/ensures/examples). Draft mode only checks syntax, not completeness. The enrichment step (rv-03) will fill in the content, then rv-03 will validate with `--strict`.
+
+If any spec fails to parse, log it in `specs/IMPORT-REPORT.md` with the error message. Do NOT move or delete the file — keep it in `specs/` for rv-03 to attempt fixing. Do NOT create backup directories or exclusion folders.
 
 ### 4. Report
 
@@ -96,7 +101,8 @@ Sample skeleton (specs/{first}.aria):
 
 ❌ Editing `.aria` files manually
 ❌ Skipping the validation step
-❌ Continuing past invalid generated specs
+❌ Moving/deleting invalid specs — keep them in `specs/` for rv-03 to fix
+❌ Creating ad-hoc directories (.aria-needs-fix/, .aria-backup/, .aria/excluded/)
 
 ## NEXT STEP
 

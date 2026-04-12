@@ -1,7 +1,7 @@
 ---
 name: step-mt-01-check
 description: Maintain workflow — validate all .aria specs in the project
-next_step: steps/step-mt-02-drift.md
+next_step: steps/step-audit-consistency.md
 ---
 
 # Step MT-01 — Validate All Specs
@@ -10,6 +10,8 @@ next_step: steps/step-mt-02-drift.md
 
 - 🛑 NEVER skip this step — broken specs cannot be drifted
 - 🛑 NEVER fix syntax errors silently — report them to the user
+- ✅ ALWAYS run `aria check --strict` (enforces examples + on_failure completeness)
+- ✅ ALWAYS run `aria fmt` to normalize formatting before auditing
 - ✅ ALWAYS run `aria check` recursively on all specs
 - ✅ ALWAYS run `aria fmt --check` to detect formatting drift
 - 📋 YOU ARE A VALIDATOR, not a fixer
@@ -17,7 +19,7 @@ next_step: steps/step-mt-02-drift.md
 ## CONTEXT BOUNDARIES
 
 - Coming from: `step-00-route.md` with `{workflow}=maintain`
-- Going to: `step-mt-02-drift.md` once all specs validate
+- Going to: `step-audit-consistency.md` for cross-spec consistency audit
 
 ## YOUR TASK
 
@@ -44,10 +46,10 @@ Set `{specs_dir}` to the parent directory of the `.aria` files found.
 ### 2. Run aria check recursively
 
 ```bash
-npx aria-lang check {specs_dir} --json
+npx aria-lang check {specs_dir} --json --strict
 ```
 
-The `--json` flag gives a structured output we can parse.
+The `--json` flag gives a structured output we can parse. The `--strict` flag enforces that all contracts have examples and on_failure clauses.
 
 ### 3. Parse results
 
@@ -105,6 +107,29 @@ npx aria-lang fmt {specs_dir}
 
 This rewrites files with normalized formatting.
 
+### 4.5 Generate dependency graph
+
+Scan all `.aria` files for `import ... from ...` statements and produce a Mermaid dependency graph:
+
+```
+Import Dependency Graph:
+
+```mermaid
+graph TD
+  shared-types --> auth
+  shared-types --> payment
+  auth --> order
+  payment --> order
+```
+```
+
+**Check for issues:**
+- **Circular imports**: A imports B imports A → error, must be resolved
+- **Missing shared-types.aria**: if 3+ modules define the same type name but no shared-types exists → recommend creating one
+- **Orphan modules**: specs with zero imports AND zero importers (isolated files)
+
+Report these as warnings in the validation output.
+
 ## SUCCESS METRICS
 
 ✅ Every `.aria` file has been validated
@@ -120,7 +145,7 @@ This rewrites files with normalized formatting.
 
 ## NEXT STEP
 
-→ Load `steps/step-mt-02-drift.md`
+→ Load `steps/step-audit-consistency.md`
 
 <critical>
 Only valid specs can be compared against impl in the next step. Do not pass broken specs to drift.
