@@ -172,6 +172,14 @@ The user now has:
 - (Optionally) AI-implemented contracts
 - A clear next-action list
 
+## FINALIZE
+
+After the final report, load the finalization step to lock down the project:
+
+→ Load `steps/step-finalize.md`
+
+This updates CLAUDE.md with spec-driven rules, configures CI drift checks, and generates `specs/NEXT-STEPS.md`.
+
 <critical>
-This is a terminal step. Stop after the final report.
+Do NOT skip finalization. Without CLAUDE.md rules, the next AI session will ignore the specs and write whatever it wants. The finalize step is what makes the whole pipeline stick.
 </critical>

@@ -134,12 +134,14 @@ Options:
 ❌ Hiding test failures
 ❌ Not detecting the test runner
 
-## COMPLETION
+## FINALIZE
 
-The forward workflow ends here. **Do NOT load another step.**
+After presenting the report, load the finalization step to lock down the project:
 
-If the user wants to start a new workflow (reverse, maintain, setup), they can invoke `/aria <new command>` again.
+→ Load `steps/step-finalize.md`
+
+This updates CLAUDE.md with spec-driven rules, configures CI drift checks, and generates `specs/NEXT-STEPS.md`.
 
 <critical>
-This is a terminal step. Stop after the report. Do not load any other file.
+Do NOT skip finalization. The CLAUDE.md update is what ensures all future AI sessions respect the specs. Without it, the next refactor will ignore the contracts.
 </critical>

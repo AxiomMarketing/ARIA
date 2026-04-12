@@ -9,7 +9,7 @@ description: Maintain workflow — propose and apply drift fixes
 
 - 🛑 NEVER auto-apply fixes without user confirmation (unless `auto_mode=true` AND fix is trivial)
 - 🛑 NEVER guess at intent — ask the user when ambiguous
-- 🛑 NEVER load another step after this — terminal step
+- 🛑 NEVER skip the finalize step — CLAUDE.md must be updated
 - ✅ ALWAYS show the proposed fix as a diff before applying
 - ✅ ALWAYS re-run drift after applying fixes to verify
 - 📋 YOU ARE AN ADVISOR — the user owns the final decision
@@ -175,9 +175,11 @@ If drift remains:
 ❌ Loading another step after this
 ❌ Touching files unrelated to the drift findings
 
-## COMPLETION
+## FINALIZE
 
-The maintain workflow ends here. Do NOT load another step.
+After the final report, load the finalization step to update CLAUDE.md and CI:
+
+→ Load `steps/step-finalize.md`
 
 <critical>
 This is a terminal step. Stop after the final report.

@@ -200,6 +200,14 @@ The user now has:
 - A clear action plan
 - (Optionally) Generated TypeScript code, AI implementations, or Mermaid diagrams
 
+## FINALIZE
+
+After the user's choice is executed (or if they choose "Stop here"), load the finalization step:
+
+→ Load `steps/step-finalize.md`
+
+This updates CLAUDE.md with spec-driven rules, configures CI drift checks, and generates `specs/NEXT-STEPS.md`.
+
 <critical>
-Always offer the implementation bridge — the reverse workflow's value is diminished if specs stay as dead documents. The whole point is: specs → code → tests.
+Always offer the implementation bridge AND finalize. The reverse workflow's value is diminished if specs stay as dead documents and the CLAUDE.md doesn't enforce them. The whole point is: specs → code → tests → enforcement.
 </critical>
