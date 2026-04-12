@@ -73,9 +73,21 @@ Show the user:
   - {module}.test.ts
 ```
 
-### 5. Quick smoke check
+### 5. Type safety smoke check
 
-For TypeScript: try `npx tsc --noEmit {output_dir}/*.ts` if possible to confirm the generated code compiles. Skip if too noisy.
+For TypeScript target, verify the generated code is strictly typed:
+
+```bash
+# Compile check
+npx tsc --noEmit {output_dir}/*.ts 2>&1 | head -20
+
+# Zero-any check: generated scaffolding must not contain any/unknown leaks
+grep -rn ": any" {output_dir}/*.ts | grep -v "as any" | grep -v "// any-ok"
+```
+
+The ARIA generator should NEVER produce `z.any()` in Zod schemas. If you see `any` in the generated types file, it's a bug in the generator — report it but continue.
+
+The `.contracts.ts` file will contain `throw new Error("Not implemented")` stubs — that's expected. The next step replaces them.
 
 ## SUCCESS METRICS
 

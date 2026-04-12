@@ -11,8 +11,10 @@ next_step: steps/step-fw-06-test.md
 - 🛑 NEVER call this step without `ANTHROPIC_API_KEY` being set
 - 🛑 NEVER write the implementation manually — `aria implement` calls Claude
 - 🛑 NEVER continue if `aria implement` fails — fix the issue first
+- 🛑 NEVER allow `any` type in generated implementations — reject and re-prompt if detected
 - ✅ ALWAYS verify ANTHROPIC_API_KEY before invoking the command
 - ✅ ALWAYS report what was implemented and what failed
+- ✅ ALWAYS run the type safety audit after implementation (see step 3.5)
 - 📋 YOU ARE A DRIVER — `aria implement` does the actual work
 
 ## CONTEXT BOUNDARIES
@@ -92,6 +94,53 @@ Show the user:
 ✗ {K} contracts failed:
   - {ContractNameY}: {error message}
 ```
+
+### 3.5 Type safety & design patterns audit
+
+After successful implementation, scan all generated contract files for quality issues:
+
+```bash
+# Check for forbidden patterns
+grep -rn "any" {output_dir}/*.contracts.ts | grep -v "// any-ok"
+grep -rn "as any" {output_dir}/*.contracts.ts
+grep -rn ": any" {output_dir}/*.contracts.ts
+grep -rn "any\[\]" {output_dir}/*.contracts.ts
+```
+
+**Forbidden patterns (auto-fix required):**
+
+| Pattern | Why it's bad | Fix |
+|---------|-------------|-----|
+| `: any` | Bypasses type system entirely | Use the specific type from the .types.ts file |
+| `as any` | Unsafe cast, hides errors | Use `as SpecificType` or type guard |
+| `any[]` | Untyped array | Use `SpecificType[]` or generic `T[]` |
+| `// @ts-ignore` | Silences compiler | Fix the underlying type issue |
+| `// @ts-expect-error` | Silences compiler | Fix the underlying type issue |
+| `Object` (capitalized) | Too broad | Use `Record<string, unknown>` or specific interface |
+| `Function` (capitalized) | Untyped callable | Use specific signature `(arg: T) => R` |
+| `{}` as type | Empty object, accepts anything | Use `Record<string, never>` or specific type |
+
+If any forbidden pattern is found:
+1. Read the contract spec to understand what type should be used
+2. Replace with the correct type from the generated `.types.ts`
+3. Re-run `npx tsc --noEmit` to verify
+
+**Design pattern recommendations (suggest, don't force):**
+
+When reviewing the implementation, recommend these patterns where they fit:
+
+| Situation in code | Recommended pattern | Reference |
+|---|---|---|
+| Multiple conditions checking object type/state | **Strategy pattern** — each condition becomes a strategy | refactoring.guru/design-patterns/strategy |
+| Building complex objects step by step | **Builder pattern** — fluent API for construction | refactoring.guru/design-patterns/builder |
+| State machine implementation (from behaviors) | **State pattern** — each state is a class | refactoring.guru/design-patterns/state |
+| Notifying multiple systems of changes | **Observer pattern** — event-based decoupling | refactoring.guru/design-patterns/observer |
+| Creating objects without specifying exact class | **Factory Method** — centralized creation | refactoring.guru/design-patterns/factory-method |
+| Wrapping external service calls | **Adapter pattern** — normalize third-party APIs | refactoring.guru/design-patterns/adapter |
+| Adding behavior without modifying existing code | **Decorator pattern** — composable wrappers | refactoring.guru/design-patterns/decorator |
+| Saga/compensation from ARIA specs | **Command pattern** — encapsulate operations for undo | refactoring.guru/design-patterns/command |
+
+These are suggestions for the user to consider during code review, not automatic transformations.
 
 ### 4. If failures occurred
 
