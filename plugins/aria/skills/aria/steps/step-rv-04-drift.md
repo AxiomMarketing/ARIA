@@ -153,7 +153,7 @@ questions:
       - label: "Generate TypeScript + Zod from specs (Recommended)"
         description: "Run aria gen on all enriched specs to produce .types.ts, .contracts.ts, .behaviors.ts"
       - label: "Generate + Implement with AI"
-        description: "Run aria gen then aria implement to have Claude fill in all function stubs"
+        description: "Run aria gen then Claude Code implements the stubs directly from specs"
       - label: "Generate diagrams"
         description: "Run aria diagram to produce Mermaid state diagrams for all behaviors"
     multiSelect: false
@@ -173,14 +173,14 @@ Then report:
   - {output_dir}/*.behaviors.ts (state machine stubs)
 
 Next: fill in the function bodies guided by the contracts.
-You can use `aria implement --ai claude` to have AI fill them.
+Claude Code can implement the stubs directly by reading the specs.
 ```
 
 **If user chooses "Generate + Implement with AI":**
 
 ```bash
 npx aria-lang gen specs/ -o {output_dir}
-npx aria-lang implement {output_dir} --ai claude
+Claude Code implements the stubs directly by reading the specs (no API key needed).
 ```
 
 **If user chooses "Generate diagrams":**

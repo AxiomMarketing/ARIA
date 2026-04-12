@@ -7,13 +7,15 @@ description: Project workflow — generate code + AI implementation for all spec
 
 ## MANDATORY EXECUTION RULES
 
-- 🛑 NEVER run aria implement without ANTHROPIC_API_KEY
-- 🛑 NEVER load another step after this — terminal step
+- 🛑 NEVER use `aria implement --ai claude` — it requires a separate ANTHROPIC_API_KEY. Claude Code implements directly.
+- 🛑 NEVER skip the finalize step — CLAUDE.md must be updated
 - 🛑 NEVER continue if `aria gen` fails on any spec
-- ✅ ALWAYS run `aria gen` on every spec before any `aria implement` call
-- ✅ ALWAYS report per-spec status (gen success/fail, implement success/fail)
+- 🛑 NEVER use `any` type — use generated types from `.types.ts`
+- ✅ ALWAYS run `aria gen` on every spec first to produce scaffolding
+- ✅ ALWAYS implement stubs directly by reading specs — YOU are the implementer
+- ✅ ALWAYS report per-spec status (gen success/fail, contracts implemented)
 - ✅ ALWAYS produce a final summary with all generated files
-- 📋 YOU ARE A DRIVER — call CLI commands, do not write code by hand
+- 📋 YOU ARE THE IMPLEMENTER — read specs, fill stubs, respect contracts
 
 ## CONTEXT BOUNDARIES
 
@@ -28,19 +30,7 @@ Run `aria gen` on every spec, optionally run `aria implement` on every spec (bas
 
 ## EXECUTION SEQUENCE
 
-### 1. Verify ANTHROPIC_API_KEY (only if implementing)
-
-If `{implement_choice}` includes implement, check:
-
-```bash
-echo "${ANTHROPIC_API_KEY:-NOT_SET}" | head -c 10
-```
-
-If not set:
-- If `auto_mode=false`, ask if the user wants to skip implementation OR set the key
-- If `auto_mode=true`, automatically downgrade to "scaffolding only"
-
-### 2. Generate code for every spec
+### 1. Generate code for every spec
 
 For each `{spec}` in `{generated_specs}`:
 
@@ -52,27 +42,29 @@ Track success/fail per spec.
 
 If any fail, report the error but continue with the others.
 
-### 3. (Optional) Run aria implement for every spec
+### 2. (Optional) Implement contract stubs directly
 
-Only if `{implement_choice}` includes implement.
+Only if `{implement_choice}` includes implement. Claude Code implements directly — no API key needed.
 
-For each `{spec}` in `{generated_specs}`:
+For each spec, read the `.aria` file then fill in the `throw new Error("Not implemented")` stubs in the generated `.contracts.ts`:
 
-```bash
-npx aria-lang implement {spec} --ai claude -o src/{kebab-module}/
-```
+1. Read the spec's requires/ensures/on_failure/examples
+2. Read the generated `.types.ts` for input/result types
+3. Replace each stub with real code that satisfies the contract
+4. Implement `{name}Requires()` and `{name}Ensures()` guard functions (not just `return true`)
+5. Apply design patterns from `reference/design-patterns.md` where the spec indicates them
+6. Verify zero `any` in the implementation
 
-Track success/fail per spec. Report progress per spec:
+Report progress per spec:
 
 ```
 [1/6] specs/auth.aria → src/auth/
    ✓ Generated 4 files
-   ✓ Implemented 4 contracts via Claude
+   ✓ Implemented 4 contracts (Factory Method for roles)
 
 [2/6] specs/products.aria → src/products/
    ✓ Generated 4 files
-   ⚠ 1 contract had a security warning, review needed
-   ✓ Implemented 4 contracts via Claude
+   ✓ Implemented 4 contracts (Builder for ProductConfig)
 ```
 
 ### 4. (Optional) Run tests for the whole project
