@@ -168,6 +168,8 @@ When reviewing the implementation, recommend patterns from https://refactoring.g
 
 Choose patterns based on what the ARIA spec describes, not what seems clever. A spec with `dispatch` naturally maps to Strategy; a spec with `behavior` + `states` maps to State. Don't force patterns where the code is simple enough without them.
 
+**Full reference with implementation examples:** Read `reference/design-patterns.md` in the skill directory for detailed TypeScript implementations of all 22 patterns mapped to ARIA specs.
+
 ### 4. If failures occurred
 
 For each failed contract:
