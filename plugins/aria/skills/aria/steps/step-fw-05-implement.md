@@ -127,20 +127,46 @@ If any forbidden pattern is found:
 
 **Design pattern recommendations (suggest, don't force):**
 
-When reviewing the implementation, recommend these patterns where they fit:
+When reviewing the implementation, recommend patterns from https://refactoring.guru/design-patterns/typescript where they match ARIA spec structures. All 22 GoF patterns mapped to ARIA:
 
-| Situation in code | Recommended pattern | Reference |
+**Creational Patterns — how objects are created:**
+
+| ARIA spec pattern | Recommended pattern | When to use |
 |---|---|---|
-| Multiple conditions checking object type/state | **Strategy pattern** — each condition becomes a strategy | refactoring.guru/design-patterns/strategy |
-| Building complex objects step by step | **Builder pattern** — fluent API for construction | refactoring.guru/design-patterns/builder |
-| State machine implementation (from behaviors) | **State pattern** — each state is a class | refactoring.guru/design-patterns/state |
-| Notifying multiple systems of changes | **Observer pattern** — event-based decoupling | refactoring.guru/design-patterns/observer |
-| Creating objects without specifying exact class | **Factory Method** — centralized creation | refactoring.guru/design-patterns/factory-method |
-| Wrapping external service calls | **Adapter pattern** — normalize third-party APIs | refactoring.guru/design-patterns/adapter |
-| Adding behavior without modifying existing code | **Decorator pattern** — composable wrappers | refactoring.guru/design-patterns/decorator |
-| Saga/compensation from ARIA specs | **Command pattern** — encapsulate operations for undo | refactoring.guru/design-patterns/command |
+| Multiple type variants (Enum with many values) | **Factory Method** — centralized creation with subclass override | Creating role instances, action handlers, error types |
+| Family of related types (Record + sub-Records) | **Abstract Factory** — produce families of related objects | Creating entire game configs, UI theme sets, API client sets |
+| Complex Record with many fields + computed | **Builder** — step-by-step fluent construction | Building GameConfig, complex query objects, multi-step forms |
+| Type reused across modules (from shared-types) | **Prototype** — clone existing instances | Copying player state, duplicating game snapshots, template configs |
+| Contract with `depends_on` single service | **Singleton** — ensure one instance of a service | Database connections, game engine instance, event bus |
 
-These are suggestions for the user to consider during code review, not automatic transformations.
+**Structural Patterns — how objects compose:**
+
+| ARIA spec pattern | Recommended pattern | When to use |
+|---|---|---|
+| Contract wrapping external service (`depends_on`) | **Adapter** — normalize third-party API to your interface | Wrapping Stripe, DB drivers, WebSocket libraries |
+| Generic type `Result of T, E` with variants | **Bridge** — separate abstraction from implementation | Decoupling rendering from game logic, transport from protocol |
+| Nested Record types (Record of Records) | **Composite** — treat tree structures uniformly | Game state trees, UI component hierarchies, permission trees |
+| Contract with `rate_limit` / `timeout` / `retry` | **Decorator** — add behavior without modifying original | Adding logging, caching, rate limiting, auth checks to any contract |
+| Module with many contracts behind one entry | **Facade** — simplified interface to a complex subsystem | GameEngine exposing start/stop/action instead of 20 internal contracts |
+| Shared type used in 100+ places (Enum, small Record) | **Flyweight** — share immutable state across instances | RoleDef instances, card definitions, static game rules |
+| Contract that validates before delegating | **Proxy** — control access to the real implementation | Auth proxy, validation proxy, lazy-loading proxy, logging proxy |
+
+**Behavioral Patterns — how objects communicate:**
+
+| ARIA spec pattern | Recommended pattern | When to use |
+|---|---|---|
+| Contract with ordered `requires` checks | **Chain of Responsibility** — pass request along handler chain | Validation pipelines, middleware stacks, permission checks |
+| Saga `steps` + `compensate` | **Command** — encapsulate operation for undo/redo/queue | Reversible game actions, transaction rollback, action history |
+| List types iterated in contracts | **Iterator** — traverse collections without exposing internals | Iterating players, processing vote lists, scanning game events |
+| Dispatch to multiple sub-contracts | **Mediator** — centralize complex communication | Game event bus, phase coordinator, notification dispatcher |
+| Behavior with state history / `old()` references | **Memento** — capture and restore state snapshots | Save/load game, undo last action, state rollback |
+| Behavior `invariants` + event system | **Observer** — notify subscribers of state changes | Phase change events, death notifications, vote updates |
+| Behavior with `states` + `transitions` | **State** — each state is a class with its own behavior | Game phases, player lifecycle, connection states |
+| Dispatch `on field when X -> ContractX` | **Strategy** — swap algorithms at runtime | Role-specific night actions, different vote counting methods |
+| Multiple contracts sharing same flow structure | **Template Method** — define skeleton, subclasses fill steps | Night phase template (each role overrides performAction) |
+| Contract that transforms Record fields | **Visitor** — add operations to objects without modifying them | Stat calculators, serializers, report generators on game state |
+
+Choose patterns based on what the ARIA spec describes, not what seems clever. A spec with `dispatch` naturally maps to Strategy; a spec with `behavior` + `states` maps to State. Don't force patterns where the code is simple enough without them.
 
 ### 4. If failures occurred
 
